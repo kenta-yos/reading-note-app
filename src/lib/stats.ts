@@ -3,9 +3,44 @@ import type {
   StatsResponse,
   MonthlyPages,
   CategoryTotal,
-  TagFrequency,
   MonthlyByCategory,
 } from "./types";
+
+export async function getAvailableYears(): Promise<number[]> {
+  const rows = await prisma.$queryRaw<{ year: number }[]>`
+    SELECT DISTINCT EXTRACT(YEAR FROM "readAt")::int AS year
+    FROM "Book"
+    WHERE "readAt" IS NOT NULL
+    ORDER BY year DESC
+  `;
+  return rows.map((r) => r.year);
+}
+
+export async function getStatsForAllYears(): Promise<StatsResponse> {
+  const books = await prisma.book.findMany({ orderBy: { readAt: "asc" } });
+
+  const totalBooks = books.length;
+  const totalPages = books.reduce((sum, b) => sum + b.pages, 0);
+
+  const categoryMap = new Map<string, { pages: number; count: number }>();
+  for (const book of books) {
+    const cat = book.category ?? "その他";
+    const prev = categoryMap.get(cat) ?? { pages: 0, count: 0 };
+    categoryMap.set(cat, { pages: prev.pages + book.pages, count: prev.count + 1 });
+  }
+  const categoryTotals: CategoryTotal[] = Array.from(categoryMap.entries()).map(
+    ([category, { pages, count }]) => ({ category, pages, count })
+  );
+
+  return {
+    totalBooks,
+    totalPages,
+    monthlyPages: [],
+    categoryTotals,
+    monthlyByCategory: [],
+    goal: null,
+  };
+}
 
 export async function getStatsForYear(year: number): Promise<StatsResponse> {
   const startDate = new Date(year, 0, 1);
@@ -51,18 +86,6 @@ export async function getStatsForYear(year: number): Promise<StatsResponse> {
     ([category, { pages, count }]) => ({ category, pages, count })
   );
 
-  // Tag frequencies
-  const tagMap = new Map<string, number>();
-  for (const book of books) {
-    for (const tag of book.tags) {
-      tagMap.set(tag, (tagMap.get(tag) ?? 0) + 1);
-    }
-  }
-  const tagFrequencies: TagFrequency[] = Array.from(tagMap.entries())
-    .map(([tag, count]) => ({ tag, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 15);
-
   // Monthly by category
   const monthlyCatMap = new Map<number, Record<string, number>>();
   for (let m = 1; m <= 12; m++) monthlyCatMap.set(m, {});
@@ -83,7 +106,6 @@ export async function getStatsForYear(year: number): Promise<StatsResponse> {
     totalPages,
     monthlyPages,
     categoryTotals,
-    tagFrequencies,
     monthlyByCategory,
     goal,
   };

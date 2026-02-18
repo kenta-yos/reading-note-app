@@ -2,6 +2,12 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import BookFilters from "@/components/BookFilters";
 import { Suspense } from "react";
+import { getAvailableYears } from "@/lib/stats";
+
+async function getCategories(): Promise<string[]> {
+  const cats = await prisma.category.findMany({ orderBy: { name: "asc" } });
+  return cats.map((c) => c.name);
+}
 
 type SearchParams = {
   q?: string;
@@ -57,7 +63,14 @@ async function BookList({ searchParams }: { searchParams: SearchParams }) {
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-500 mb-3">{book.author ?? "著者不明"}</p>
+          <p className="text-xs text-slate-500 mb-1">{book.author ?? "著者不明"}</p>
+          {(book.publisher || book.publishedYear) && (
+            <p className="text-xs text-slate-400 mb-2">
+              {[book.publisher, book.publishedYear ? `${book.publishedYear}年` : null]
+                .filter(Boolean)
+                .join("、")}
+            </p>
+          )}
           <div className="flex items-center justify-between">
             <div className="flex gap-2">
               {book.category && (
@@ -73,18 +86,6 @@ async function BookList({ searchParams }: { searchParams: SearchParams }) {
               {new Date(book.readAt).toLocaleDateString("ja-JP")} 読了
             </p>
           )}
-          {book.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2">
-              {book.tags.slice(0, 3).map((tag) => (
-                <span key={tag} className="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">
-                  {tag}
-                </span>
-              ))}
-              {book.tags.length > 3 && (
-                <span className="text-xs text-slate-400">+{book.tags.length - 3}</span>
-              )}
-            </div>
-          )}
         </Link>
       ))}
     </div>
@@ -96,25 +97,31 @@ export default async function BooksPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  const params = await searchParams;
+  const [params, categories, availableYears] = await Promise.all([
+    searchParams,
+    getCategories(),
+    getAvailableYears(),
+  ]);
+  const currentYear = new Date().getFullYear();
+  const years = [...new Set([...availableYears, currentYear])].sort((a, b) => b - a);
 
   return (
     <div className="max-w-5xl mx-auto">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 lg:mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">読書記録</h1>
-          <p className="text-slate-500 text-sm mt-1">登録した本の一覧</p>
+          <h1 className="text-xl lg:text-2xl font-bold text-slate-800">読書記録</h1>
+          <p className="text-slate-500 text-sm mt-0.5">登録した本の一覧</p>
         </div>
         <Link
           href="/books/new"
-          className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition"
+          className="self-start sm:self-auto px-3 py-2 lg:px-4 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition"
         >
           本を登録
         </Link>
       </div>
 
       <Suspense>
-        <BookFilters />
+        <BookFilters categories={categories} years={years} />
       </Suspense>
 
       <Suspense fallback={<p className="text-slate-400 text-sm">読み込み中...</p>}>

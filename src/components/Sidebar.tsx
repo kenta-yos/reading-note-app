@@ -9,13 +9,14 @@ const navItems = [
   { href: "/books/new", label: "本を登録", icon: "➕" },
   { href: "/analytics", label: "知識分析", icon: "🧠" },
   { href: "/goals", label: "年間目標", icon: "🎯" },
+  { href: "/categories", label: "カテゴリ管理", icon: "🗂️" },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-56 min-h-screen bg-slate-900 text-white flex flex-col py-6 px-4 shrink-0">
+    <aside className="hidden lg:flex w-56 min-h-screen bg-slate-900 text-white flex-col py-6 px-4 shrink-0">
       <h1 className="text-xl font-bold mb-8 px-2 text-blue-300">
         ScholarGraph
       </h1>
@@ -24,7 +25,14 @@ export default function Sidebar() {
           const isActive =
             item.href === "/"
               ? pathname === "/"
-              : pathname.startsWith(item.href);
+              : pathname === item.href ||
+                (pathname.startsWith(item.href + "/") &&
+                  !navItems.some(
+                    (other) =>
+                      other.href !== item.href &&
+                      other.href.startsWith(item.href) &&
+                      pathname.startsWith(other.href)
+                  ));
           return (
             <Link
               key={item.href}

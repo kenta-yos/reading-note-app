@@ -2,9 +2,10 @@ export type Book = {
   id: string;
   title: string;
   author: string | null;
+  publisher: string | null;
+  publishedYear: number | null;
   pages: number;
   category: string | null;
-  tags: string[];
   rating: number | null;
   notes: string | null;
   readAt: Date | null;
@@ -29,11 +30,6 @@ export type CategoryTotal = {
   count: number;
 };
 
-export type TagFrequency = {
-  tag: string;
-  count: number;
-};
-
 export type MonthlyByCategory = {
   month: number;
   [category: string]: number;
@@ -44,21 +40,12 @@ export type StatsResponse = {
   totalPages: number;
   monthlyPages: MonthlyPages[];
   categoryTotals: CategoryTotal[];
-  tagFrequencies: TagFrequency[];
   monthlyByCategory: MonthlyByCategory[];
   goal: AnnualGoal | null;
 };
 
-export const CATEGORIES = [
-  "哲学",
-  "科学",
-  "歴史",
-  "社会学",
-  "経済学",
-  "文学",
-  "心理学",
-  "政治学",
-  "その他",
-] as const;
-
-export type Category = (typeof CATEGORIES)[number];
+export type Category = {
+  id: string;
+  name: string;
+  createdAt: Date;
+};

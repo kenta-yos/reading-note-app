@@ -1,17 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { CATEGORIES } from "@/lib/types";
 
 type BookFormProps = {
   initialData?: {
     id?: string;
     title?: string;
     author?: string;
+    publisher?: string;
+    publishedYear?: number;
     pages?: number;
     category?: string;
-    tags?: string[];
     rating?: number;
     notes?: string;
     readAt?: string;
@@ -23,12 +23,21 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [categories, setCategories] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch("/api/categories")
+      .then((r) => r.json())
+      .then((data) => setCategories(data.map((c: { name: string }) => c.name)));
+  }, []);
 
   const [title, setTitle] = useState(initialData.title ?? "");
   const [author, setAuthor] = useState(initialData.author ?? "");
+  const [publisher, setPublisher] = useState(initialData.publisher ?? "");
+  const [publishedYear, setPublishedYear] = useState(String(initialData.publishedYear ?? ""));
   const [pages, setPages] = useState(String(initialData.pages ?? ""));
   const [category, setCategory] = useState(initialData.category ?? "");
-  const [tagsInput, setTagsInput] = useState((initialData.tags ?? []).join(", "));
+
   const [rating, setRating] = useState(String(initialData.rating ?? ""));
   const [notes, setNotes] = useState(initialData.notes ?? "");
   const [readAt, setReadAt] = useState(
@@ -42,17 +51,13 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
     setLoading(true);
     setError("");
 
-    const tags = tagsInput
-      .split(",")
-      .map((t) => t.trim())
-      .filter(Boolean);
-
     const payload = {
       title,
       author,
+      publisher,
+      publishedYear: publishedYear ? Number(publishedYear) : null,
       pages: Number(pages),
       category: category || null,
-      tags,
       rating: rating ? Number(rating) : null,
       notes,
       readAt,
@@ -113,7 +118,32 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-slate-600 mb-1">出版社</label>
+          <input
+            type="text"
+            value={publisher}
+            onChange={(e) => setPublisher(e.target.value)}
+            placeholder="例：岩波書店"
+            className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-600 mb-1">出版年</label>
+          <input
+            type="number"
+            value={publishedYear}
+            onChange={(e) => setPublishedYear(e.target.value)}
+            placeholder="例：2023"
+            min="1800"
+            max="2100"
+            className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-slate-600 mb-1">
             ページ数 <span className="text-red-500">*</span>
@@ -142,7 +172,7 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-slate-600 mb-1">
             カテゴリ
@@ -153,7 +183,7 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
             className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
           >
             <option value="">選択なし</option>
-            {CATEGORIES.map((c) => (
+            {categories.map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>
@@ -178,19 +208,6 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
             ))}
           </select>
         </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-slate-600 mb-1">
-          タグ（カンマ区切り）
-        </label>
-        <input
-          type="text"
-          value={tagsInput}
-          onChange={(e) => setTagsInput(e.target.value)}
-          placeholder="例：存在論, 現象学, ドイツ哲学"
-          className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-        />
       </div>
 
       <div>

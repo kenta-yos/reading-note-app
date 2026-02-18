@@ -9,16 +9,22 @@ type GoalData = {
   goal: number;
 };
 
-const YEARS = [2026, 2025, 2024, 2023];
-
 export default function GoalsPage() {
   const currentYear = new Date().getFullYear();
+  const [availableYears, setAvailableYears] = useState<number[]>([currentYear]);
   const [goalInput, setGoalInput] = useState("");
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [chartData, setChartData] = useState<GoalData[]>([]);
   const [loadingChart, setLoadingChart] = useState(true);
+
+  // データが存在する年を取得
+  useEffect(() => {
+    fetch("/api/years")
+      .then((r) => r.json())
+      .then((years: number[]) => setAvailableYears(years));
+  }, []);
 
   useEffect(() => {
     const fetchGoal = async () => {
@@ -30,11 +36,12 @@ export default function GoalsPage() {
   }, [selectedYear]);
 
   useEffect(() => {
+    if (availableYears.length === 0) return;
     const fetchChart = async () => {
       setLoadingChart(true);
       try {
         const results = await Promise.all(
-          YEARS.map(async (y) => {
+          availableYears.map(async (y) => {
             const [statsRes, goalRes] = await Promise.all([
               fetch(`/api/stats?year=${y}`),
               fetch(`/api/goals/${y}`),
@@ -54,7 +61,7 @@ export default function GoalsPage() {
       }
     };
     fetchChart();
-  }, [saving]);
+  }, [saving, availableYears]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,15 +84,15 @@ export default function GoalsPage() {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-800">年間目標</h1>
-        <p className="text-slate-500 text-sm mt-1">年ごとのページ数目標を設定</p>
+      <div className="mb-6 lg:mb-8">
+        <h1 className="text-xl lg:text-2xl font-bold text-slate-800">年間目標</h1>
+        <p className="text-slate-500 text-sm mt-0.5">年ごとのページ数目標を設定</p>
       </div>
 
       {/* Goal setting form */}
-      <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm mb-6">
+      <div className="bg-white border border-slate-200 rounded-xl p-4 lg:p-6 shadow-sm mb-5 lg:mb-6">
         <h2 className="text-sm font-semibold text-slate-600 mb-4">目標を設定</h2>
-        <form onSubmit={handleSave} className="flex flex-wrap gap-3 items-end">
+        <form onSubmit={handleSave} className="flex flex-col sm:flex-row flex-wrap gap-3 items-stretch sm:items-end">
           <div>
             <label className="block text-xs text-slate-500 mb-1">対象年</label>
             <select
@@ -93,7 +100,7 @@ export default function GoalsPage() {
               onChange={(e) => setSelectedYear(Number(e.target.value))}
               className="p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white text-sm"
             >
-              {YEARS.map((y) => (
+              {availableYears.map((y) => (
                 <option key={y} value={y}>
                   {y}年
                 </option>

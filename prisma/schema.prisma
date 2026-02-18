@@ -8,16 +8,23 @@ generator client {
 }
 
 model Book {
-  id        String    @id @default(cuid())
-  title     String
-  author    String?
-  pages     Int
-  category  String?
-  tags      String[]
-  rating    Int?
-  notes     String?
-  readAt    DateTime?
-  createdAt DateTime  @default(now())
+  id            String    @id @default(cuid())
+  title         String
+  author        String?
+  publisher     String?
+  publishedYear Int?
+  pages         Int
+  category      String?
+  rating        Int?
+  notes         String?
+  readAt        DateTime?
+  createdAt     DateTime  @default(now())
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
 }
 
 model AnnualGoal {

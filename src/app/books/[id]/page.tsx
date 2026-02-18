@@ -49,17 +49,24 @@ export default async function BookDetailPage({
         <span className="text-sm text-slate-600 truncate">{book.title}</span>
       </div>
 
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex items-start justify-between mb-5 lg:mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">{book.title}</h1>
+          <h1 className="text-lg lg:text-2xl font-bold text-slate-800 leading-snug">{book.title}</h1>
           {book.author && (
             <p className="text-slate-500 mt-1">{book.author}</p>
+          )}
+          {(book.publisher || book.publishedYear) && (
+            <p className="text-sm text-slate-400 mt-0.5">
+              {[book.publisher, book.publishedYear ? `${book.publishedYear}年` : null]
+                .filter(Boolean)
+                .join("、")}
+            </p>
           )}
         </div>
         <DeleteButton id={id} />
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+      <div className="bg-white border border-slate-200 rounded-xl p-4 lg:p-6 shadow-sm">
         <h2 className="text-sm font-semibold text-slate-600 mb-5">情報を編集</h2>
         <EditBookForm book={typedBook} />
       </div>
