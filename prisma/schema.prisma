@@ -1,0 +1,28 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "library"
+}
+
+model Book {
+  id        String    @id @default(cuid())
+  title     String
+  author    String?
+  pages     Int
+  category  String?
+  tags      String[]
+  rating    Int?
+  notes     String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model AnnualGoal {
+  id        String   @id @default(cuid())
+  year      Int      @unique
+  pageGoal  Int
+  createdAt DateTime @default(now())
+}
