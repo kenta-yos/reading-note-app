@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import Link from "next/link";
+import BookCard from "@/components/BookCard";
 import BookFilters from "@/components/BookFilters";
 import { Suspense } from "react";
 import { getAvailableYears } from "@/lib/stats";
@@ -48,45 +48,18 @@ async function BookList({ searchParams }: { searchParams: SearchParams }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
       {books.map((book) => (
-        <Link
+        <BookCard
           key={book.id}
-          href={`/books/${book.id}`}
-          className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md hover:border-blue-200 transition-all"
-        >
-          <div className="flex items-start justify-between gap-2 mb-2">
-            <h3 className="text-sm font-semibold text-slate-800 leading-snug line-clamp-2">
-              {book.title}
-            </h3>
-            {book.rating && (
-              <span className="text-xs text-amber-500 shrink-0">
-                {"★".repeat(book.rating)}
-              </span>
-            )}
-          </div>
-          <p className="text-xs text-slate-500 mb-1">{book.author ?? "著者不明"}</p>
-          {(book.publisher || book.publishedYear) && (
-            <p className="text-xs text-slate-400 mb-2">
-              {[book.publisher, book.publishedYear ? `${book.publishedYear}年` : null]
-                .filter(Boolean)
-                .join("、")}
-            </p>
-          )}
-          <div className="flex items-center justify-between">
-            <div className="flex gap-2">
-              {book.category && (
-                <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
-                  {book.category}
-                </span>
-              )}
-            </div>
-            <span className="text-xs text-slate-400">{book.pages} P</span>
-          </div>
-          {book.readAt && (
-            <p className="text-xs text-slate-400 mt-2">
-              {new Date(book.readAt).toLocaleDateString("ja-JP")} 読了
-            </p>
-          )}
-        </Link>
+          id={book.id}
+          title={book.title}
+          author={book.author}
+          publisher={book.publisher}
+          publishedYear={book.publishedYear}
+          pages={book.pages}
+          category={book.category}
+          rating={book.rating}
+          readAt={book.readAt}
+        />
       ))}
     </div>
   );
