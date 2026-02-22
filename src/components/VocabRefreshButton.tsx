@@ -4,10 +4,11 @@ import { useState } from "react";
 import Spinner from "./Spinner";
 
 type Props = {
-  pendingCount: number; // 未処理の本の数
+  pendingCount: number;
+  pendingBooks: { id: string; title: string }[];
 };
 
-export default function VocabRefreshButton({ pendingCount }: Props) {
+export default function VocabRefreshButton({ pendingCount, pendingBooks }: Props) {
   const [state, setState] = useState<"idle" | "running" | "done" | "error">("idle");
   const [message, setMessage] = useState("");
 

@@ -10,7 +10,7 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/prisma";
-import { API_ERROR_SENTINEL } from "@/lib/keyword-extractor";
+import { API_ERROR_SENTINEL, NO_CONCEPTS_SENTINEL } from "@/lib/keyword-extractor";
 import vocabulary from "@/lib/concept-vocabulary.json";
 
 const VOCAB_STR = (vocabulary as string[]).join("、");
@@ -91,6 +91,17 @@ export async function POST() {
             })
           )
         );
+        processed++;
+      } else {
+        // API成功だが語彙リストに一致する概念がなかった → 再試行ループを防ぐ
+        await prisma.bookKeyword.deleteMany({
+          where: { bookId: book.id, keyword: API_ERROR_SENTINEL },
+        });
+        await prisma.bookKeyword.upsert({
+          where: { bookId_keyword: { bookId: book.id, keyword: NO_CONCEPTS_SENTINEL } },
+          create: { bookId: book.id, keyword: NO_CONCEPTS_SENTINEL, count: 0 },
+          update: { count: 0 },
+        });
         processed++;
       }
     } catch {

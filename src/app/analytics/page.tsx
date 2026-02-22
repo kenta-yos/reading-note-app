@@ -11,18 +11,21 @@ import DisciplineBumpChart from "@/components/charts/DisciplineBumpChart";
 import VocabRefreshButton from "@/components/VocabRefreshButton";
 
 export default async function AnalyticsPage() {
-  const [graphData, bumpData, keywordData, disciplineBumpData, pendingCount] = await Promise.all([
+  const [graphData, bumpData, keywordData, disciplineBumpData, pendingBooks] = await Promise.all([
     getConceptGraph(),
     getConceptBump(),
     getKeywordHeatmap(),
     getDisciplineBump(),
-    prisma.book.count({
+    prisma.book.findMany({
       where: {
         readAt: { not: null },
         NOT: { keywords: { some: { keyword: { not: API_ERROR_SENTINEL } } } },
       },
+      select: { id: true, title: true },
+      orderBy: { title: "asc" },
     }),
   ]);
+  const pendingCount = pendingBooks.length;
 
   // --- 静的サマリーテキスト ---
   const top3 = graphData.nodes.slice(0, 3).map((n) => n.concept);
@@ -74,11 +77,20 @@ export default async function AnalyticsPage() {
     <div className="max-w-5xl mx-auto">
       {keywordData.hasApiError && (
         <div className="mb-5 bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 text-sm text-amber-800">
-          <p className="font-semibold mb-0.5">⚠️ キーワード抽出でエラーが発生しました</p>
-          <p className="text-amber-700 text-xs leading-relaxed">
-            AIによる概念抽出がAPIクレジット不足などの理由で失敗しました。
-            クレジットを追加後にページを再読み込みすると自動で再試行されます。
+          <p className="font-semibold mb-1">⚠️ 概念抽出に失敗している本があります（{pendingCount}冊）</p>
+          <p className="text-amber-700 text-xs leading-relaxed mb-3">
+            APIエラーにより概念を抽出できませんでした。下のボタンで再試行するか、クレジット残高を確認してください。
           </p>
+          {pendingBooks.length > 0 && (
+            <ul className="text-xs text-amber-800 space-y-0.5 mb-1">
+              {pendingBooks.map((b) => (
+                <li key={b.id} className="flex items-start gap-1.5">
+                  <span className="text-amber-400 mt-px shrink-0">•</span>
+                  <span>{b.title}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 
@@ -87,7 +99,7 @@ export default async function AnalyticsPage() {
           <h1 className="text-xl lg:text-2xl font-bold text-slate-800">知の変遷</h1>
           <p className="text-slate-500 text-sm mt-0.5">蓄積してきた概念の地形と変遷</p>
         </div>
-        <VocabRefreshButton pendingCount={pendingCount} />
+        <VocabRefreshButton pendingCount={pendingCount} pendingBooks={pendingBooks} />
       </div>
 
       {/* ── 静的：知識の地形図 ── */}

@@ -10,6 +10,8 @@ import vocabulary from "./concept-vocabulary.json";
 
 // API失敗時にDBに保存するセンチネル値（無限ループ防止用）
 export const API_ERROR_SENTINEL = "__api_error__";
+// API成功だが語彙リストに一致する概念がなかった場合のセンチネル（再試行不要）
+export const NO_CONCEPTS_SENTINEL = "__no_concepts__";
 
 const VOCAB_STR = (vocabulary as string[]).join("、");
 
@@ -85,6 +87,17 @@ export async function extractAndStoreKeywords(
             })
           )
         );
+      } else {
+        // API成功だが語彙リストに一致する概念がなかった
+        // __api_error__ センチネルを削除し __no_concepts__ を保存（再試行ループ防止）
+        await prisma.bookKeyword.deleteMany({
+          where: { bookId: book.id, keyword: API_ERROR_SENTINEL },
+        });
+        await prisma.bookKeyword.upsert({
+          where: { bookId_keyword: { bookId: book.id, keyword: NO_CONCEPTS_SENTINEL } },
+          create: { bookId: book.id, keyword: NO_CONCEPTS_SENTINEL, count: 0 },
+          update: { count: 0 },
+        });
       }
     } catch {
       // 失敗: センチネルを保存して次回再試行できるようにする
