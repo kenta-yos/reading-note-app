@@ -55,18 +55,28 @@ export default function ConceptBumpChart({ data }: { data: ConceptBumpData }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [books, setBooks] = useState<ConceptBook[]>([]);
   const [booksLoading, setBooksLoading] = useState(false);
+  const [description, setDescription] = useState<string | null>(null);
+  const [descLoading, setDescLoading] = useState(false);
 
   useEffect(() => {
     if (!selected) {
       setBooks([]);
+      setDescription(null);
       return;
     }
     setBooksLoading(true);
+    setDescLoading(true);
+    setDescription(null);
     fetch(`/api/concepts/books?concept=${encodeURIComponent(selected)}`)
       .then((r) => r.json())
       .then(setBooks)
       .catch(() => setBooks([]))
       .finally(() => setBooksLoading(false));
+    fetch(`/api/concepts/description?concept=${encodeURIComponent(selected)}`)
+      .then((r) => r.json())
+      .then((d) => setDescription(d.description ?? null))
+      .catch(() => setDescription(null))
+      .finally(() => setDescLoading(false));
   }, [selected]);
 
   if (!years.length || !concepts.length) {
@@ -200,6 +210,20 @@ export default function ConceptBumpChart({ data }: { data: ConceptBumpData }) {
               {appearances.map((d) => d.year).join("・")} 年に登場。
               {bestEntry && (` ピークは ${bestEntry.year} 年（#${bestEntry.ranks[selected]}）。`)}
             </div>
+
+            {/* 概念説明 */}
+            {(descLoading || description) && (
+              <div
+                className="px-3 pb-2.5 pt-2 text-xs text-slate-500 leading-relaxed border-t"
+                style={{ borderColor: `${PALETTE[idx % PALETTE.length]}20` }}
+              >
+                {descLoading ? (
+                  <span className="text-slate-400 italic">説明を生成中…</span>
+                ) : (
+                  description
+                )}
+              </div>
+            )}
 
             {/* 紐づく本リスト */}
             <div className="border-t px-3 py-2" style={{ borderColor: `${PALETTE[idx % PALETTE.length]}20` }}>

@@ -60,6 +60,8 @@ export default function ConceptForceGraph({ data }: { data: ConceptGraphData }) 
   const [clicked, setClicked] = useState<string | null>(null);
   const [books, setBooks] = useState<ConceptBook[]>([]);
   const [booksLoading, setBooksLoading] = useState(false);
+  const [description, setDescription] = useState<string | null>(null);
+  const [descLoading, setDescLoading] = useState(false);
 
   useEffect(() => {
     if (!data.nodes.length) return;
@@ -143,18 +145,26 @@ export default function ConceptForceGraph({ data }: { data: ConceptGraphData }) 
     });
   }, [data]);
 
-  // クリックされた概念の本を取得
+  // クリックされた概念の本と説明を取得
   useEffect(() => {
     if (!clicked) {
       setBooks([]);
+      setDescription(null);
       return;
     }
     setBooksLoading(true);
+    setDescLoading(true);
+    setDescription(null);
     fetch(`/api/concepts/books?concept=${encodeURIComponent(clicked)}`)
       .then((r) => r.json())
       .then(setBooks)
       .catch(() => setBooks([]))
       .finally(() => setBooksLoading(false));
+    fetch(`/api/concepts/description?concept=${encodeURIComponent(clicked)}`)
+      .then((r) => r.json())
+      .then((d) => setDescription(d.description ?? null))
+      .catch(() => setDescription(null))
+      .finally(() => setDescLoading(false));
   }, [clicked]);
 
   if (!data.nodes.length) {
@@ -318,6 +328,16 @@ export default function ConceptForceGraph({ data }: { data: ConceptGraphData }) 
               閉じる
             </button>
           </div>
+          {/* 概念説明 */}
+          {(descLoading || description) && (
+            <div className="px-3 py-2 border-b border-blue-100 text-xs text-slate-600 leading-relaxed">
+              {descLoading ? (
+                <span className="text-slate-400 italic">説明を生成中…</span>
+              ) : (
+                description
+              )}
+            </div>
+          )}
           <div className="px-3 py-2">
             {booksLoading ? (
               <p className="text-xs text-slate-400 py-1">読み込み中…</p>
