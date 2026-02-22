@@ -2,29 +2,32 @@ export const dynamic = "force-dynamic";
 
 import { getConceptGraph, getConceptBump } from "@/lib/concepts";
 import { getKeywordHeatmap } from "@/lib/keywords";
-import { getDisciplineBump } from "@/lib/stats";
+import { getDisciplineBump, getVocabHealth } from "@/lib/stats";
 import { prisma } from "@/lib/prisma";
 import { API_ERROR_SENTINEL } from "@/lib/keyword-extractor";
 import ConceptForceGraph from "@/components/charts/ConceptForceGraph";
 import ConceptBumpChart from "@/components/charts/ConceptBumpChart";
 import DisciplineBumpChart from "@/components/charts/DisciplineBumpChart";
 import VocabRefreshButton from "@/components/VocabRefreshButton";
+import VocabHealthCard from "@/components/VocabHealthCard";
 
 export default async function AnalyticsPage() {
-  const [graphData, bumpData, keywordData, disciplineBumpData, pendingBooks] = await Promise.all([
-    getConceptGraph(),
-    getConceptBump(),
-    getKeywordHeatmap(),
-    getDisciplineBump(),
-    prisma.book.findMany({
-      where: {
-        readAt: { not: null },
-        NOT: { keywords: { some: { keyword: { not: API_ERROR_SENTINEL } } } },
-      },
-      select: { id: true, title: true },
-      orderBy: { title: "asc" },
-    }),
-  ]);
+  const [graphData, bumpData, keywordData, disciplineBumpData, pendingBooks, vocabHealth] =
+    await Promise.all([
+      getConceptGraph(),
+      getConceptBump(),
+      getKeywordHeatmap(),
+      getDisciplineBump(),
+      prisma.book.findMany({
+        where: {
+          readAt: { not: null },
+          NOT: { keywords: { some: { keyword: { not: API_ERROR_SENTINEL } } } },
+        },
+        select: { id: true, title: true },
+        orderBy: { title: "asc" },
+      }),
+      getVocabHealth(),
+    ]);
   const pendingCount = pendingBooks.length;
 
   // --- 静的サマリーテキスト ---
@@ -75,22 +78,23 @@ export default async function AnalyticsPage() {
 
   return (
     <div className="max-w-5xl mx-auto">
-      {keywordData.hasApiError && (
+      {/* APIエラーで概念抽出に失敗した本がある場合のみ表示（0概念で処理済みの本は含まない） */}
+      {keywordData.hasApiError && pendingBooks.length > 0 && (
         <div className="mb-5 bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 text-sm text-amber-800">
-          <p className="font-semibold mb-1">⚠️ 概念抽出に失敗している本があります（{pendingCount}冊）</p>
-          <p className="text-amber-700 text-xs leading-relaxed mb-3">
-            APIエラーにより概念を抽出できませんでした。下のボタンで再試行するか、クレジット残高を確認してください。
+          <p className="font-semibold mb-1">
+            ⚠️ APIエラーにより概念抽出に失敗している本があります（{pendingCount}冊）
           </p>
-          {pendingBooks.length > 0 && (
-            <ul className="text-xs text-amber-800 space-y-0.5 mb-1">
-              {pendingBooks.map((b) => (
-                <li key={b.id} className="flex items-start gap-1.5">
-                  <span className="text-amber-400 mt-px shrink-0">•</span>
-                  <span>{b.title}</span>
-                </li>
-              ))}
-            </ul>
-          )}
+          <p className="text-amber-700 text-xs leading-relaxed mb-3">
+            クレジット残高を確認後、下のボタンで再試行してください。
+          </p>
+          <ul className="text-xs text-amber-800 space-y-0.5 mb-1">
+            {pendingBooks.map((b) => (
+              <li key={b.id} className="flex items-start gap-1.5">
+                <span className="text-amber-400 mt-px shrink-0">•</span>
+                <span>{b.title}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
@@ -101,6 +105,9 @@ export default async function AnalyticsPage() {
         </div>
         <VocabRefreshButton pendingCount={pendingCount} pendingBooks={pendingBooks} />
       </div>
+
+      {/* ── 語彙の健全性 ── */}
+      <VocabHealthCard data={vocabHealth} />
 
       {/* ── 静的：知識の地形図 ── */}
       <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm mb-6 lg:mb-8">

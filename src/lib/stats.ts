@@ -1,4 +1,6 @@
 import { prisma } from "./prisma";
+import vocabulary from "./concept-vocabulary.json";
+import { API_ERROR_SENTINEL, NO_CONCEPTS_SENTINEL } from "./keyword-extractor";
 import type {
   StatsResponse,
   MonthlyPages,
@@ -255,4 +257,117 @@ export async function getDisciplineBump(): Promise<DisciplineBumpData> {
   });
 
   return { years, disciplines, data };
+}
+
+// ─── 語彙健全性指標 ───────────────────────────────────────────
+
+export type VocabHealthData = {
+  /** 全期間の語彙適合率（0〜1） */
+  matchRate: number;
+  /** 直近2年の語彙適合率（0〜1） */
+  recentMatchRate: number;
+  /** 処理済み冊数（API成功）*/
+  totalProcessed: number;
+  /** 少なくとも1語彙マッチした冊数 */
+  totalMatched: number;
+  /** 語彙に一致なし（__no_concepts__ または語彙外概念のみ）の冊数 */
+  totalNoMatch: number;
+  /** 語彙外で抽出された概念（頻度降順） */
+  outOfVocabConcepts: { concept: string; count: number }[];
+  /** 年別適合率 */
+  yearlyRates: { year: number; rate: number; total: number }[];
+};
+
+export async function getVocabHealth(): Promise<VocabHealthData> {
+  const vocabSet = new Set(vocabulary as string[]);
+  const SENTINEL_SET = new Set([API_ERROR_SENTINEL, NO_CONCEPTS_SENTINEL]);
+
+  const books = await prisma.book.findMany({
+    where: { readAt: { not: null } },
+    select: {
+      id: true,
+      readAt: true,
+      keywords: { select: { keyword: true } },
+    },
+  });
+
+  let totalMatched = 0;
+  let totalNoMatch = 0;
+  const yearData = new Map<number, { matched: number; noMatch: number }>();
+  const outOfVocabCount = new Map<string, number>();
+
+  for (const book of books) {
+    const keywords = book.keywords.map((k) => k.keyword);
+    const realKeywords = keywords.filter((k) => !SENTINEL_SET.has(k));
+    const hasNoConceptsSentinel = keywords.includes(NO_CONCEPTS_SENTINEL);
+    const isApiError =
+      keywords.includes(API_ERROR_SENTINEL) &&
+      realKeywords.length === 0 &&
+      !hasNoConceptsSentinel;
+
+    // APIエラー状態・未処理はスキップ（語彙の問題ではない）
+    if (keywords.length === 0 || isApiError) continue;
+
+    const year = book.readAt!.getFullYear();
+    if (!yearData.has(year)) yearData.set(year, { matched: 0, noMatch: 0 });
+
+    if (realKeywords.length > 0) {
+      const hasVocabMatch = realKeywords.some((k) => vocabSet.has(k));
+      if (hasVocabMatch) {
+        totalMatched++;
+        yearData.get(year)!.matched++;
+      } else {
+        // 語彙外概念のみ（リストにない概念のみ抽出された）
+        totalNoMatch++;
+        yearData.get(year)!.noMatch++;
+      }
+      // 語彙外概念を集計
+      for (const k of realKeywords) {
+        if (!vocabSet.has(k)) {
+          outOfVocabCount.set(k, (outOfVocabCount.get(k) ?? 0) + 1);
+        }
+      }
+    } else if (hasNoConceptsSentinel) {
+      // API成功だが語彙リストに一致する概念なし
+      totalNoMatch++;
+      yearData.get(year)!.noMatch++;
+    }
+  }
+
+  const totalProcessed = totalMatched + totalNoMatch;
+  const matchRate = totalProcessed > 0 ? totalMatched / totalProcessed : 1;
+
+  // 直近2年の適合率
+  const allYears = [...yearData.keys()].sort((a, b) => a - b);
+  const recentYears = allYears.slice(-2);
+  let recentMatched = 0;
+  let recentTotal = 0;
+  for (const yr of recentYears) {
+    const d = yearData.get(yr)!;
+    recentMatched += d.matched;
+    recentTotal += d.matched + d.noMatch;
+  }
+  const recentMatchRate =
+    recentTotal > 0 ? recentMatched / recentTotal : matchRate;
+
+  const outOfVocabConcepts = [...outOfVocabCount.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([concept, count]) => ({ concept, count }));
+
+  const yearlyRates = allYears.map((yr) => {
+    const d = yearData.get(yr)!;
+    const total = d.matched + d.noMatch;
+    return { year: yr, rate: total > 0 ? d.matched / total : 1, total };
+  });
+
+  return {
+    matchRate,
+    recentMatchRate,
+    totalProcessed,
+    totalMatched,
+    totalNoMatch,
+    outOfVocabConcepts,
+    yearlyRates,
+  };
 }
