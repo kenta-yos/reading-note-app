@@ -22,16 +22,23 @@ type PositionedEdge = {
   key: string;
 };
 
+type ConceptBook = {
+  id: string;
+  title: string;
+  author: string | null;
+  readAt: string | null;
+  rating: number | null;
+};
+
 // Warm-cool color scale: old = blue, new = orange-red
 function yearToColor(year: number, minYear: number, maxYear: number): string {
   if (minYear === maxYear) return "#6366f1";
-  const t = (year - minYear) / (maxYear - minYear); // 0 (old) → 1 (new)
-  // blue → indigo → violet → orange
+  const t = (year - minYear) / (maxYear - minYear);
   const stops = [
-    [96, 165, 250],   // blue-400  (oldest)
+    [96, 165, 250],   // blue-400
     [139, 92, 246],   // violet-500
     [245, 101, 101],  // red-400
-    [249, 115, 22],   // orange-500 (newest)
+    [249, 115, 22],   // orange-500
   ];
   const seg = Math.min(Math.floor(t * (stops.length - 1)), stops.length - 2);
   const localT = t * (stops.length - 1) - seg;
@@ -50,6 +57,9 @@ export default function ConceptForceGraph({ data }: { data: ConceptGraphData }) 
   const containerRef = useRef<HTMLDivElement>(null);
   const [graph, setGraph] = useState<{ nodes: PositionedNode[]; edges: PositionedEdge[] } | null>(null);
   const [tooltip, setTooltip] = useState<{ concept: string; totalCount: number; peakYear: number; x: number; y: number } | null>(null);
+  const [clicked, setClicked] = useState<string | null>(null);
+  const [books, setBooks] = useState<ConceptBook[]>([]);
+  const [booksLoading, setBooksLoading] = useState(false);
 
   useEffect(() => {
     if (!data.nodes.length) return;
@@ -101,7 +111,6 @@ export default function ConceptForceGraph({ data }: { data: ConceptGraphData }) 
 
       simulation.tick(500);
 
-      // Clamp to viewport with generous padding for labels
       for (const n of simNodes) {
         n.x = Math.max(n.r + 40, Math.min(W - n.r - 40, n.x ?? W / 2));
         n.y = Math.max(n.r + 40, Math.min(H - n.r - 40, n.y ?? H / 2));
@@ -133,6 +142,20 @@ export default function ConceptForceGraph({ data }: { data: ConceptGraphData }) 
       setGraph({ nodes: posNodes, edges: posEdges });
     });
   }, [data]);
+
+  // クリックされた概念の本を取得
+  useEffect(() => {
+    if (!clicked) {
+      setBooks([]);
+      return;
+    }
+    setBooksLoading(true);
+    fetch(`/api/concepts/books?concept=${encodeURIComponent(clicked)}`)
+      .then((r) => r.json())
+      .then(setBooks)
+      .catch(() => setBooks([]))
+      .finally(() => setBooksLoading(false));
+  }, [clicked]);
 
   if (!data.nodes.length) {
     return (
@@ -167,6 +190,10 @@ export default function ConceptForceGraph({ data }: { data: ConceptGraphData }) 
           viewBox={`0 0 ${W} ${H}`}
           className="w-full"
           style={{ height: "auto", maxHeight: 520 }}
+          onClick={(e) => {
+            // SVGの背景クリックで選択解除
+            if ((e.target as SVGElement).tagName === "svg") setClicked(null);
+          }}
         >
           {/* Edges */}
           {graph.edges.map((e) => (
@@ -183,6 +210,7 @@ export default function ConceptForceGraph({ data }: { data: ConceptGraphData }) 
           {graph.nodes.map((n) => {
             const isLarge = n.r >= 30;
             const label = n.concept.length > 8 ? n.concept.slice(0, 7) + "…" : n.concept;
+            const isClicked = clicked === n.concept;
             return (
               <g
                 key={n.concept}
@@ -190,16 +218,30 @@ export default function ConceptForceGraph({ data }: { data: ConceptGraphData }) 
                 className="cursor-pointer"
                 onMouseEnter={() => setTooltip({ ...n, x: n.x, y: n.y })}
                 onMouseLeave={() => setTooltip(null)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setClicked((prev) => (prev === n.concept ? null : n.concept));
+                  setTooltip(null);
+                }}
               >
+                {/* クリック時の外リング */}
+                {isClicked && (
+                  <circle
+                    r={n.r + 5}
+                    fill="none"
+                    stroke="#3b82f6"
+                    strokeWidth={2.5}
+                    strokeOpacity={0.7}
+                  />
+                )}
                 <circle
                   r={n.r}
                   fill={n.color}
-                  fillOpacity={0.80}
+                  fillOpacity={isClicked ? 1 : 0.80}
                   stroke="white"
-                  strokeWidth={2}
+                  strokeWidth={isClicked ? 3 : 2}
                 />
                 {isLarge ? (
-                  /* 大きい円: テキストを内部に */
                   <text
                     textAnchor="middle"
                     dominantBaseline="middle"
@@ -211,7 +253,6 @@ export default function ConceptForceGraph({ data }: { data: ConceptGraphData }) 
                     {label}
                   </text>
                 ) : (
-                  /* 小さい円: テキストを外部に、背景付き */
                   <>
                     <rect
                       x={-label.length * 3.5 - 3}
@@ -227,8 +268,8 @@ export default function ConceptForceGraph({ data }: { data: ConceptGraphData }) 
                       y={n.r + 14}
                       textAnchor="middle"
                       fontSize={11}
-                      fill="#334155"
-                      fontWeight="600"
+                      fill={isClicked ? "#3b82f6" : "#334155"}
+                      fontWeight={isClicked ? "700" : "600"}
                       style={{ pointerEvents: "none", userSelect: "none" }}
                     >
                       {label}
@@ -241,8 +282,8 @@ export default function ConceptForceGraph({ data }: { data: ConceptGraphData }) 
         </svg>
       )}
 
-      {/* Tooltip */}
-      {tooltip && (
+      {/* Hover Tooltip */}
+      {tooltip && !clicked && (
         <div
           className="absolute z-10 bg-white border border-slate-200 rounded-lg shadow-lg p-3 text-xs pointer-events-none"
           style={{
@@ -256,6 +297,58 @@ export default function ConceptForceGraph({ data }: { data: ConceptGraphData }) 
           {tooltip.peakYear > 0 && (
             <p className="text-slate-500">ピーク: <span className="font-medium text-slate-700">{tooltip.peakYear}年</span></p>
           )}
+          <p className="text-slate-400 mt-1">タップで本を表示</p>
+        </div>
+      )}
+
+      {/* クリック選択中の本リスト */}
+      {clicked && (
+        <div className="mt-3 rounded-lg border border-blue-100 bg-blue-50 overflow-hidden">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-blue-100">
+            <p className="text-xs font-semibold text-blue-700">
+              「{clicked}」が登場する本
+              {!booksLoading && books.length > 0 && (
+                <span className="ml-1.5 font-normal text-blue-500">（{books.length}冊）</span>
+              )}
+            </p>
+            <button
+              onClick={() => setClicked(null)}
+              className="text-xs text-blue-400 hover:text-blue-600 transition-colors"
+            >
+              閉じる
+            </button>
+          </div>
+          <div className="px-3 py-2">
+            {booksLoading ? (
+              <p className="text-xs text-slate-400 py-1">読み込み中…</p>
+            ) : books.length === 0 ? (
+              <p className="text-xs text-slate-400 py-1">該当する本が見つかりません</p>
+            ) : (
+              <div className="space-y-0.5">
+                {books.map((b) => (
+                  <a
+                    key={b.id}
+                    href={`/books/${b.id}`}
+                    className="flex items-center gap-2 px-2 py-1.5 -mx-2 rounded-lg hover:bg-white transition group"
+                  >
+                    <span className="flex-1 text-xs text-slate-700 font-medium truncate group-hover:text-blue-600 transition-colors">
+                      {b.title}
+                    </span>
+                    {b.author && (
+                      <span className="text-xs text-slate-400 shrink-0 truncate max-w-[90px] hidden sm:block">
+                        {b.author}
+                      </span>
+                    )}
+                    {b.readAt && (
+                      <span className="text-xs text-slate-300 shrink-0">
+                        {new Date(b.readAt).getFullYear()}年
+                      </span>
+                    )}
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
