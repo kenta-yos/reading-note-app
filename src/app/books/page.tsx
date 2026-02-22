@@ -107,17 +107,9 @@ export default async function BooksPage({
 
   return (
     <div className="max-w-5xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 lg:mb-8">
-        <div>
-          <h1 className="text-xl lg:text-2xl font-bold text-slate-800">読書記録</h1>
-          <p className="text-slate-500 text-sm mt-0.5">登録した本の一覧</p>
-        </div>
-        <Link
-          href="/books/new"
-          className="self-start sm:self-auto px-3 py-2 lg:px-4 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition"
-        >
-          本を登録
-        </Link>
+      <div className="mb-6 lg:mb-8">
+        <h1 className="text-xl lg:text-2xl font-bold text-slate-800">読書記録</h1>
+        <p className="text-slate-500 text-sm mt-0.5">登録した本の一覧</p>
       </div>
 
       <Suspense>

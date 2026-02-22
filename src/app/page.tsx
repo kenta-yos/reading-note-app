@@ -3,9 +3,65 @@ import StatCard from "@/components/StatCard";
 import GoalProgressBar from "@/components/GoalProgressBar";
 import MonthlyBarChart from "@/components/charts/MonthlyBarChart";
 import CategoryPieChart from "@/components/charts/CategoryPieChart";
+import BurndownChart, { type BurndownDataPoint } from "@/components/charts/BurndownChart";
 import YearSelector from "@/components/YearSelector";
 import Link from "next/link";
 import { Suspense } from "react";
+
+function buildBurndownData(
+  monthlyPages: { month: number; pages: number }[],
+  goal: number,
+  currentYear: number,
+  viewYear: number
+): BurndownDataPoint[] {
+  const today = new Date();
+  // 表示年が現在年の場合のみ当月まで actual を描画、それ以外は全月 actual
+  const isCurrentYear = viewYear === currentYear;
+  const currentMonth = isCurrentYear ? today.getMonth() + 1 : 12;
+
+  let cumulative = 0;
+  const pagesByMonth = new Map(monthlyPages.map((m) => [m.month, m.pages]));
+
+  // actual の累積を currentMonth まで計算してから projection を求める
+  let cumulativeAtCurrentMonth = 0;
+  for (let m = 1; m <= currentMonth; m++) {
+    cumulativeAtCurrentMonth += pagesByMonth.get(m) ?? 0;
+  }
+  const avgPerMonth =
+    currentMonth > 0 ? cumulativeAtCurrentMonth / currentMonth : 0;
+
+  return Array.from({ length: 12 }, (_, i) => {
+    const month = i + 1;
+    const monthPages = pagesByMonth.get(month) ?? 0;
+
+    // 目標ペース（線形）
+    const target = goal > 0 ? Math.round((goal / 12) * month) : null;
+
+    let actual: number | null = null;
+    let projection: number | null = null;
+
+    if (month <= currentMonth) {
+      cumulative += monthPages;
+      actual = cumulative;
+      // 当月は projection の起点にもなる
+      if (month === currentMonth && isCurrentYear) {
+        projection = cumulative;
+      }
+    } else if (isCurrentYear) {
+      // 将来月は予測
+      projection = Math.round(
+        cumulativeAtCurrentMonth + avgPerMonth * (month - currentMonth)
+      );
+    }
+
+    return {
+      month: `${month}月`,
+      target,
+      actual,
+      projection,
+    };
+  });
+}
 
 export default async function DashboardPage({
   searchParams,
@@ -13,8 +69,12 @@ export default async function DashboardPage({
   searchParams: Promise<{ year?: string }>;
 }) {
   const params = await searchParams;
-  const currentYear = new Date().getFullYear();
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth() + 1;
+
   const year = params.year ? parseInt(params.year) : currentYear;
+  const isCurrentYear = year === currentYear;
 
   const [stats, availableYears] = await Promise.all([
     getStatsForYear(year),
@@ -22,6 +82,16 @@ export default async function DashboardPage({
   ]);
 
   const years = [...new Set([...availableYears, currentYear])].sort((a, b) => b - a);
+
+  // 当月のページ数（現在年のみ）
+  const pagesThisMonth = isCurrentYear
+    ? (stats.monthlyPages.find((m) => m.month === currentMonth)?.pages ?? 0)
+    : undefined;
+
+  // バーンダウンチャートデータ（目標がある場合のみ）
+  const burndownData = stats.goal
+    ? buildBurndownData(stats.monthlyPages, stats.goal.pageGoal, currentYear, year)
+    : null;
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -31,17 +101,9 @@ export default async function DashboardPage({
           <h1 className="text-xl lg:text-2xl font-bold text-slate-800">ダッシュボード</h1>
           <p className="text-slate-500 text-sm mt-0.5">{year}年の読書状況</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Suspense>
-            <YearSelector years={years} currentYear={year} />
-          </Suspense>
-          <Link
-            href="/books/new"
-            className="px-3 py-2 lg:px-4 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition"
-          >
-            本を登録
-          </Link>
-        </div>
+        <Suspense>
+          <YearSelector years={years} currentYear={year} />
+        </Suspense>
       </div>
 
       {/* Stats */}
@@ -66,6 +128,8 @@ export default async function DashboardPage({
             current={stats.totalPages}
             goal={stats.goal.pageGoal}
             year={year}
+            pagesThisMonth={pagesThisMonth}
+            currentMonth={isCurrentYear ? currentMonth : undefined}
           />
         </div>
       )}
@@ -90,6 +154,19 @@ export default async function DashboardPage({
           <CategoryPieChart data={stats.categoryTotals} />
         </div>
       </div>
+
+      {/* Burndown Chart */}
+      {burndownData && (
+        <div className="mt-4 lg:mt-6 bg-white border border-slate-200 rounded-xl p-4 lg:p-5 shadow-sm">
+          <h2 className="text-sm font-semibold text-slate-600 mb-1">
+            年間ペース予測
+          </h2>
+          <p className="text-xs text-slate-400 mb-3 lg:mb-4">
+            現在のペースで読み続けると年末に到達する累計ページ数の予測です
+          </p>
+          <BurndownChart data={burndownData} />
+        </div>
+      )}
     </div>
   );
 }

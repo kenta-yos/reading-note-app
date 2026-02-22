@@ -30,8 +30,8 @@ export default function RootLayout({
         <div className="flex min-h-screen">
           {/* PC only sidebar */}
           <Sidebar />
-          {/* pb-20 on mobile to avoid content hiding behind BottomNav */}
-          <main className="flex-1 p-4 lg:p-8 pb-24 lg:pb-8 overflow-auto">
+          {/* pb-28 on mobile to avoid content hiding behind BottomNav */}
+          <main className="flex-1 p-4 lg:p-8 pb-28 lg:pb-8 overflow-auto">
             {children}
           </main>
         </div>
