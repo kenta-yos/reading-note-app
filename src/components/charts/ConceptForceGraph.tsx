@@ -50,8 +50,8 @@ function yearToColor(year: number, minYear: number, maxYear: number): string {
   return `rgb(${r},${g},${b})`;
 }
 
-const W = 680;
-const H = 640;
+const W = 720;
+const H = 720;
 
 export default function ConceptForceGraph({ data }: { data: ConceptGraphData }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -99,23 +99,25 @@ export default function ConceptForceGraph({ data }: { data: ConceptGraphData }) 
           d3
             .forceLink<SimNode, SimLink>(simLinks)
             .id((d) => d.concept)
-            .distance((d) => Math.max(90, 200 - d.strength * 8))
+            .distance((d) => Math.max(100, 220 - d.strength * 8))
         )
-        .force("charge", d3.forceManyBody().strength(-600))
+        .force("charge", d3.forceManyBody().strength(-1000))
         .force("center", d3.forceCenter(W / 2, H / 2))
-        .force("x", d3.forceX(W / 2).strength(0.04))
-        .force("y", d3.forceY(H / 2).strength(0.04))
+        .force("x", d3.forceX(W / 2).strength(0.03))
+        .force("y", d3.forceY(H / 2).strength(0.03))
         .force(
           "collision",
-          d3.forceCollide<SimNode>().radius((d) => d.r + 20)
+          // r + 36: ノード半径 + ラベル高さ(20px) + 余白(16px)
+          d3.forceCollide<SimNode>().radius((d) => d.r + 36).iterations(3)
         )
         .stop();
 
-      simulation.tick(500);
+      simulation.tick(700);
 
       for (const n of simNodes) {
-        n.x = Math.max(n.r + 40, Math.min(W - n.r - 40, n.x ?? W / 2));
-        n.y = Math.max(n.r + 40, Math.min(H - n.r - 40, n.y ?? H / 2));
+        // 下ラベル分の余白を確保（ラベル高さ約20px）
+        n.x = Math.max(n.r + 50, Math.min(W - n.r - 50, n.x ?? W / 2));
+        n.y = Math.max(n.r + 50, Math.min(H - n.r - 50, n.y ?? H / 2));
       }
 
       const posNodes: PositionedNode[] = simNodes.map((n) => ({
@@ -218,8 +220,8 @@ export default function ConceptForceGraph({ data }: { data: ConceptGraphData }) 
 
           {/* Nodes */}
           {graph.nodes.map((n) => {
-            const isLarge = n.r >= 30;
-            const label = n.concept.length > 8 ? n.concept.slice(0, 7) + "…" : n.concept;
+            const label = n.concept;
+            const labelW = label.length * 7.5 + 8;
             const isClicked = clicked === n.concept;
             return (
               <g
@@ -234,7 +236,6 @@ export default function ConceptForceGraph({ data }: { data: ConceptGraphData }) 
                   setTooltip(null);
                 }}
               >
-                {/* クリック時の外リング */}
                 {isClicked && (
                   <circle
                     r={n.r + 5}
@@ -247,45 +248,31 @@ export default function ConceptForceGraph({ data }: { data: ConceptGraphData }) 
                 <circle
                   r={n.r}
                   fill={n.color}
-                  fillOpacity={isClicked ? 1 : 0.80}
+                  fillOpacity={isClicked ? 1 : 0.82}
                   stroke="white"
                   strokeWidth={isClicked ? 3 : 2}
                 />
-                {isLarge ? (
-                  <text
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    fontSize={Math.min(n.r * 0.38, 12)}
-                    fill="white"
-                    fontWeight="700"
-                    style={{ pointerEvents: "none", userSelect: "none" }}
-                  >
-                    {label}
-                  </text>
-                ) : (
-                  <>
-                    <rect
-                      x={-label.length * 3.5 - 3}
-                      y={n.r + 3}
-                      width={label.length * 7 + 6}
-                      height={16}
-                      fill="white"
-                      fillOpacity={0.85}
-                      rx={3}
-                      style={{ pointerEvents: "none" }}
-                    />
-                    <text
-                      y={n.r + 14}
-                      textAnchor="middle"
-                      fontSize={11}
-                      fill={isClicked ? "#3b82f6" : "#334155"}
-                      fontWeight={isClicked ? "700" : "600"}
-                      style={{ pointerEvents: "none", userSelect: "none" }}
-                    >
-                      {label}
-                    </text>
-                  </>
-                )}
+                {/* ラベルは常にノード下に表示 */}
+                <rect
+                  x={-labelW / 2}
+                  y={n.r + 3}
+                  width={labelW}
+                  height={17}
+                  fill="white"
+                  fillOpacity={0.88}
+                  rx={3}
+                  style={{ pointerEvents: "none" }}
+                />
+                <text
+                  y={n.r + 14}
+                  textAnchor="middle"
+                  fontSize={11}
+                  fill={isClicked ? "#3b82f6" : "#334155"}
+                  fontWeight={isClicked ? "700" : "600"}
+                  style={{ pointerEvents: "none", userSelect: "none" }}
+                >
+                  {label}
+                </text>
               </g>
             );
           })}

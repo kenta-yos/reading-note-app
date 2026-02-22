@@ -16,6 +16,12 @@ export type DisciplineEvolutionData = {
   totalByDiscipline: { discipline: string; pages: number; count: number }[];
 };
 
+export type DisciplineBumpData = {
+  years: number[];
+  disciplines: string[];
+  data: { year: number; ranks: { [d: string]: number } }[];
+};
+
 export async function getAvailableYears(): Promise<number[]> {
   const rows = await prisma.$queryRaw<{ year: number }[]>`
     SELECT DISTINCT EXTRACT(YEAR FROM "readAt")::int AS year
@@ -204,4 +210,49 @@ export async function getDisciplineEvolution(): Promise<DisciplineEvolutionData>
   }));
 
   return { years, disciplines, data, totalByDiscipline };
+}
+
+const MAX_BUMP_DISCIPLINES = 12;
+
+export async function getDisciplineBump(): Promise<DisciplineBumpData> {
+  const books = await prisma.book.findMany({
+    where: { readAt: { not: null } },
+    select: { readAt: true, discipline: true },
+    orderBy: { readAt: "asc" },
+  });
+
+  const yearDiscMap = new Map<number, Map<string, number>>();
+  const globalCount = new Map<string, number>();
+
+  for (const book of books) {
+    const year = book.readAt!.getFullYear();
+    const disc = book.discipline ?? "未分類";
+    if (disc === "未分類") continue;
+    if (!yearDiscMap.has(year)) yearDiscMap.set(year, new Map());
+    const discMap = yearDiscMap.get(year)!;
+    discMap.set(disc, (discMap.get(disc) ?? 0) + 1);
+    globalCount.set(disc, (globalCount.get(disc) ?? 0) + 1);
+  }
+
+  const disciplines = [...globalCount.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, MAX_BUMP_DISCIPLINES)
+    .map(([d]) => d);
+
+  const years = [...yearDiscMap.keys()].sort((a, b) => a - b);
+
+  const data = years.map((year) => {
+    const discMap = yearDiscMap.get(year)!;
+    const appeared = disciplines
+      .map((d) => ({ d, cnt: discMap.get(d) ?? 0 }))
+      .filter((x) => x.cnt > 0)
+      .sort((a, b) => b.cnt - a.cnt);
+    const ranks: { [d: string]: number } = {};
+    appeared.forEach((x, i) => {
+      ranks[x.d] = i + 1;
+    });
+    return { year, ranks };
+  });
+
+  return { years, disciplines, data };
 }

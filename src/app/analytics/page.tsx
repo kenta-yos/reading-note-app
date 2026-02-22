@@ -2,20 +2,20 @@ export const dynamic = "force-dynamic";
 
 import { getConceptGraph, getConceptBump } from "@/lib/concepts";
 import { getKeywordHeatmap } from "@/lib/keywords";
-import { getDisciplineEvolution } from "@/lib/stats";
+import { getDisciplineBump } from "@/lib/stats";
 import { prisma } from "@/lib/prisma";
 import { API_ERROR_SENTINEL } from "@/lib/keyword-extractor";
 import ConceptForceGraph from "@/components/charts/ConceptForceGraph";
 import ConceptBumpChart from "@/components/charts/ConceptBumpChart";
-import DisciplineStreamChart from "@/components/charts/DisciplineStreamChart";
+import DisciplineBumpChart from "@/components/charts/DisciplineBumpChart";
 import VocabRefreshButton from "@/components/VocabRefreshButton";
 
 export default async function AnalyticsPage() {
-  const [graphData, bumpData, keywordData, disciplineData, pendingCount] = await Promise.all([
+  const [graphData, bumpData, keywordData, disciplineBumpData, pendingCount] = await Promise.all([
     getConceptGraph(),
     getConceptBump(),
     getKeywordHeatmap(),
-    getDisciplineEvolution(),
+    getDisciplineBump(),
     prisma.book.count({
       where: {
         readAt: { not: null },
@@ -90,30 +90,6 @@ export default async function AnalyticsPage() {
         <VocabRefreshButton pendingCount={pendingCount} />
       </div>
 
-      {/* ── 学問分野の変遷 ── */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm mb-6 lg:mb-8">
-        <h2 className="text-sm font-semibold text-slate-700 mb-0.5">学問分野の変遷</h2>
-        <p className="text-xs text-slate-400 mb-4">
-          各年に読んだページ数を学問分野別に積み上げで表示しています
-        </p>
-        <DisciplineStreamChart evolutionData={disciplineData} />
-        {disciplineData.totalByDiscipline.length > 0 && (
-          <div className="mt-5 border-t border-slate-100 pt-4">
-            <p className="text-xs font-semibold text-slate-500 mb-2">全期間の分野別累計</p>
-            <div className="flex flex-wrap gap-2">
-              {disciplineData.totalByDiscipline
-                .filter((d) => d.discipline !== "未分類")
-                .map((d) => (
-                  <span key={d.discipline} className="text-xs bg-slate-50 border border-slate-100 rounded-full px-2.5 py-1 text-slate-600">
-                    {d.discipline}
-                    <span className="ml-1.5 text-slate-400 tabular-nums">{d.count}冊</span>
-                  </span>
-                ))}
-            </div>
-          </div>
-        )}
-      </div>
-
       {/* ── 静的：知識の地形図 ── */}
       <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm mb-6 lg:mb-8">
         <h2 className="text-sm font-semibold text-slate-700 mb-0.5">知識の地形図</h2>
@@ -165,6 +141,15 @@ export default async function AnalyticsPage() {
           </p>
         )}
         <ConceptBumpChart data={bumpData} />
+      </div>
+
+      {/* ── 学問分野の変遷 ── */}
+      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm mb-6 lg:mb-8">
+        <h2 className="text-sm font-semibold text-slate-700 mb-0.5">学問分野の変遷</h2>
+        <p className="text-xs text-slate-400 mb-4">
+          上位{disciplineBumpData.disciplines.length}分野の年別ランク推移（上位＝その年により多く読んだ分野）
+        </p>
+        <DisciplineBumpChart data={disciplineBumpData} />
       </div>
     </div>
   );
