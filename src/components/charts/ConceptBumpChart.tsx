@@ -214,12 +214,8 @@ export default function ConceptBumpChart({ data }: { data: ConceptBumpData }) {
                   </p>
                   <div className="space-y-0.5">
                     {books.map((b) => (
-                      <a
-                        key={b.id}
-                        href={`/books/${b.id}`}
-                        className="flex items-center gap-2 px-2 py-1.5 -mx-2 rounded-lg hover:bg-white hover:bg-opacity-60 transition group"
-                      >
-                        <span className="flex-1 text-xs text-slate-700 font-medium truncate group-hover:text-blue-600 transition-colors">
+                      <div key={b.id} className="flex items-center gap-2 px-2 py-1.5">
+                        <span className="flex-1 text-xs text-slate-700 font-medium truncate">
                           {b.title}
                         </span>
                         {b.author && (
@@ -232,7 +228,7 @@ export default function ConceptBumpChart({ data }: { data: ConceptBumpData }) {
                             {new Date(b.readAt).getFullYear()}年
                           </span>
                         )}
-                      </a>
+                      </div>
                     ))}
                   </div>
                 </>
