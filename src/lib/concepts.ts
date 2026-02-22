@@ -1,7 +1,7 @@
 import { prisma } from "./prisma";
 import { API_ERROR_SENTINEL } from "./keyword-extractor";
 
-const TOP_CONCEPTS = 15;
+const TOP_CONCEPTS = 30;
 const MIN_COOCCURRENCE = 2;
 const MAX_EDGES = 60;
 
