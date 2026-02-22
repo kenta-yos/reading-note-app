@@ -1,28 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import EditBookForm from "@/components/EditBookForm";
+import DeleteButton from "@/components/DeleteButton";
 import Link from "next/link";
 import type { Book } from "@/lib/types";
-
-async function DeleteButton({ id }: { id: string }) {
-  return (
-    <form
-      action={async () => {
-        "use server";
-        const { redirect } = await import("next/navigation");
-        await prisma.book.delete({ where: { id } });
-        redirect("/books");
-      }}
-    >
-      <button
-        type="submit"
-        className="px-4 py-2 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition"
-      >
-        削除
-      </button>
-    </form>
-  );
-}
 
 export default async function BookDetailPage({
   params,

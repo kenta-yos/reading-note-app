@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Spinner from "./Spinner";
 
 type BookCandidate = {
   title: string;
@@ -176,9 +177,16 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
             type="button"
             onClick={handleSearch}
             disabled={searchLoading || !title.trim()}
-            className="px-3 py-2.5 bg-slate-100 text-slate-600 text-sm font-medium rounded-lg border border-slate-300 hover:bg-slate-200 transition disabled:opacity-40 whitespace-nowrap"
+            className="flex items-center gap-1.5 px-3 py-2.5 bg-slate-100 text-slate-600 text-sm font-medium rounded-lg border border-slate-300 hover:bg-slate-200 active:scale-95 transition disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
           >
-            {searchLoading ? "検索中..." : "情報を取得"}
+            {searchLoading ? (
+              <>
+                <Spinner className="w-3.5 h-3.5" />
+                <span>検索中...</span>
+              </>
+            ) : (
+              "情報を取得"
+            )}
           </button>
         </div>
         {searchError && (
@@ -327,14 +335,22 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
         <button
           type="submit"
           disabled={loading}
-          className="flex-1 py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+          className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 active:scale-[0.98] transition disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {loading ? "保存中..." : mode === "edit" ? "更新する" : "登録する"}
+          {loading ? (
+            <>
+              <Spinner className="w-4 h-4" />
+              <span>保存中...</span>
+            </>
+          ) : (
+            mode === "edit" ? "更新する" : "登録する"
+          )}
         </button>
         <button
           type="button"
           onClick={() => router.back()}
-          className="px-5 py-2.5 border border-slate-300 text-slate-600 font-medium rounded-lg hover:bg-slate-50 transition"
+          disabled={loading}
+          className="px-5 py-2.5 border border-slate-300 text-slate-600 font-medium rounded-lg hover:bg-slate-50 active:scale-[0.98] transition disabled:opacity-50"
         >
           キャンセル
         </button>

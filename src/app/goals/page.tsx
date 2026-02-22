@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Spinner from "@/components/Spinner";
 import GoalComparisonChart from "@/components/charts/GoalComparisonChart";
 
 type GoalData = {
@@ -122,13 +123,22 @@ export default function GoalsPage() {
           <button
             type="submit"
             disabled={saving}
-            className="px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+            className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 active:scale-95 transition disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {saving ? "保存中..." : "保存"}
+            {saving ? (
+              <>
+                <Spinner className="w-4 h-4" />
+                <span>保存中...</span>
+              </>
+            ) : (
+              "保存"
+            )}
           </button>
         </form>
         {message && (
-          <p className="mt-3 text-sm text-green-600">{message}</p>
+          <p className={`mt-3 text-sm font-medium ${message.includes("エラー") ? "text-red-600" : "text-green-600"}`}>
+            {message.includes("エラー") ? "⚠ " : "✓ "}{message}
+          </p>
         )}
       </div>
 
@@ -138,7 +148,10 @@ export default function GoalsPage() {
           年間目標 vs 実績
         </h2>
         {loadingChart ? (
-          <p className="text-center text-slate-400 text-sm py-8">読み込み中...</p>
+          <div className="flex items-center justify-center gap-2 text-slate-400 text-sm py-8">
+            <Spinner className="w-4 h-4" />
+            <span>読み込み中...</span>
+          </div>
         ) : (
           <GoalComparisonChart data={chartData} />
         )}
