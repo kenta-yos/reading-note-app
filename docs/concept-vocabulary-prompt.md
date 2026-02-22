@@ -11,7 +11,7 @@ set -a && source .env && set +a
 node scripts/extract-raw-concepts.mjs
 ```
 
-完了したらユニーク概念数と上位10概念を教えてください。
+完了したら `scripts/raw-concepts.json` をもとに、ユニーク概念を登場冊数の多い順に全件表示してください。
 
 ---
 
