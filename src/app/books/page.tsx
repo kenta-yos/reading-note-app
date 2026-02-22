@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import BookCard from "@/components/BookCard";
 import BookFilters from "@/components/BookFilters";
+import ActionLink from "@/components/ActionLink";
 import { Suspense } from "react";
 import { getAvailableYears } from "@/lib/stats";
 
@@ -40,7 +41,7 @@ async function BookList({ searchParams }: { searchParams: SearchParams }) {
   if (books.length === 0) {
     return (
       <p className="text-center text-slate-400 text-sm py-12">
-        本が見つかりません
+        {q ? `「${q}」に一致する本は見つかりません` : "本が登録されていません"}
       </p>
     );
   }
@@ -80,16 +81,40 @@ export default async function BooksPage({
 
   return (
     <div className="max-w-5xl mx-auto">
-      <div className="mb-6 lg:mb-8">
-        <h1 className="text-xl lg:text-2xl font-bold text-slate-800">読書記録</h1>
-        <p className="text-slate-500 text-sm mt-0.5">登録した本の一覧</p>
+      <div className="flex items-start justify-between gap-3 mb-6 lg:mb-8">
+        <div>
+          <h1 className="text-xl lg:text-2xl font-bold text-slate-800">読書記録</h1>
+          <p className="text-slate-500 text-sm mt-0.5">登録した本の一覧</p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <ActionLink
+            href="/categories"
+            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:border-blue-300 hover:text-blue-600 transition-colors shadow-sm min-h-[40px] min-w-[80px]"
+            spinnerClassName="w-4 h-4 text-slate-500"
+          >
+            🗂️ 分類
+          </ActionLink>
+          <ActionLink
+            href="/books/new"
+            className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold transition-colors shadow-sm min-h-[40px] min-w-[96px]"
+            spinnerClassName="w-4 h-4 text-white"
+          >
+            ➕ 登録する
+          </ActionLink>
+        </div>
       </div>
 
       <Suspense>
         <BookFilters categories={categories} years={years} />
       </Suspense>
 
-      <Suspense fallback={<p className="text-slate-400 text-sm">読み込み中...</p>}>
+      <Suspense
+        fallback={
+          <p className="text-slate-400 text-sm py-12 text-center">
+            {params.q ? `「${params.q}」を検索中…` : "読み込み中…"}
+          </p>
+        }
+      >
         <BookList searchParams={params} />
       </Suspense>
     </div>

@@ -19,6 +19,7 @@ export default function EditBookForm({ book }: Props) {
         publishedYear: book.publishedYear ?? undefined,
         pages: book.pages,
         category: book.category ?? "",
+        discipline: book.discipline ?? "",
         rating: book.rating ?? undefined,
         notes: book.notes ?? "",
         readAt: book.readAt ? book.readAt.toISOString() : undefined,

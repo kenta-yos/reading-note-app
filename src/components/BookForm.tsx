@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Spinner from "./Spinner";
+import { DISCIPLINES } from "@/lib/disciplines";
 
 type BookCandidate = {
   title: string;
@@ -20,6 +21,7 @@ type BookFormProps = {
     publishedYear?: number;
     pages?: number;
     category?: string;
+    discipline?: string;
     rating?: number;
     notes?: string;
     readAt?: string;
@@ -38,6 +40,7 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
   const [publishedYear, setPublishedYear] = useState(String(initialData.publishedYear ?? ""));
   const [pages, setPages] = useState(String(initialData.pages ?? ""));
   const [category, setCategory] = useState(initialData.category ?? "");
+  const [discipline, setDiscipline] = useState(initialData.discipline ?? "");
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState("");
   const [candidates, setCandidates] = useState<BookCandidate[]>([]);
@@ -124,6 +127,7 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
       publishedYear: publishedYear ? Number(publishedYear) : null,
       pages: Number(pages),
       category: category || null,
+      discipline: discipline || null,
       rating: rating ? Number(rating) : null,
       notes,
       readAt,
@@ -142,7 +146,8 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
 
       if (!res.ok) throw new Error("保存に失敗しました");
 
-      router.push("/books");
+      // 編集後は詳細ページへ、新規登録は一覧へ
+      router.push(mode === "edit" ? `/books/${initialData.id}` : "/books");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "エラーが発生しました");
@@ -278,6 +283,24 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
             className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
           />
         </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-slate-600 mb-1">
+          学問分野
+        </label>
+        <select
+          value={discipline}
+          onChange={(e) => setDiscipline(e.target.value)}
+          className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+        >
+          <option value="">未分類</option>
+          {DISCIPLINES.map((d) => (
+            <option key={d} value={d}>
+              {d}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

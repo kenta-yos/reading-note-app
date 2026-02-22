@@ -1,113 +1,171 @@
-import { getStatsForYear, getStatsForAllYears, getAvailableYears } from "@/lib/stats";
-import KnowledgeRadarChart from "@/components/charts/KnowledgeRadarChart";
-import ReadingTimelineChart from "@/components/charts/ReadingTimelineChart";
-import CategoryPieChart from "@/components/charts/CategoryPieChart";
-import YearSelector from "@/components/YearSelector";
-import { Suspense } from "react";
+export const dynamic = "force-dynamic";
 
-export default async function AnalyticsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ year?: string }>;
-}) {
-  const params = await searchParams;
-  const currentYear = new Date().getFullYear();
-  const yearParam = params.year ?? String(currentYear);
-  const isAllYears = yearParam === "all";
-  const year = isAllYears ? "all" : parseInt(yearParam);
+import { getConceptGraph, getConceptBump } from "@/lib/concepts";
+import { getKeywordHeatmap } from "@/lib/keywords";
+import { getDisciplineEvolution } from "@/lib/stats";
+import { prisma } from "@/lib/prisma";
+import { API_ERROR_SENTINEL } from "@/lib/keyword-extractor";
+import ConceptForceGraph from "@/components/charts/ConceptForceGraph";
+import ConceptBumpChart from "@/components/charts/ConceptBumpChart";
+import DisciplineStreamChart from "@/components/charts/DisciplineStreamChart";
+import VocabRefreshButton from "@/components/VocabRefreshButton";
 
-  const [stats, availableYears] = await Promise.all([
-    isAllYears ? getStatsForAllYears() : getStatsForYear(year as number),
-    getAvailableYears(),
+export default async function AnalyticsPage() {
+  const [graphData, bumpData, keywordData, disciplineData, pendingCount] = await Promise.all([
+    getConceptGraph(),
+    getConceptBump(),
+    getKeywordHeatmap(),
+    getDisciplineEvolution(),
+    prisma.book.count({
+      where: {
+        readAt: { not: null },
+        NOT: { keywords: { some: { keyword: { not: API_ERROR_SENTINEL } } } },
+      },
+    }),
   ]);
-  const years = [...new Set([...availableYears, currentYear])].sort((a, b) => b - a);
-  const categories = stats.categoryTotals.map((c) => c.category);
+
+  // --- 静的サマリーテキスト ---
+  const top3 = graphData.nodes.slice(0, 3).map((n) => n.concept);
+
+  // 最も多くの概念と共起しているノード（degree中心性）
+  const degree: Record<string, number> = {};
+  for (const e of graphData.edges) {
+    degree[e.source] = (degree[e.source] ?? 0) + 1;
+    degree[e.target] = (degree[e.target] ?? 0) + 1;
+  }
+  const hubConcept = Object.entries(degree).sort((a, b) => b[1] - a[1])[0]?.[0];
+
+  // --- 動的サマリーテキスト ---
+  // 最近2年で急上昇した概念（ランクが上がったもの）
+  const years = bumpData.years;
+  let risingConcepts: string[] = [];
+  if (years.length >= 2) {
+    const recentYear = years[years.length - 1];
+    const prevYear = years[years.length - 2];
+    const recentData = bumpData.data.find((d) => d.year === recentYear);
+    const prevData = bumpData.data.find((d) => d.year === prevYear);
+    if (recentData && prevData) {
+      risingConcepts = bumpData.concepts
+        .filter((c) => {
+          const rRank = recentData.ranks[c];
+          const pRank = prevData.ranks[c];
+          return rRank !== undefined && pRank !== undefined && rRank < pRank;
+        })
+        .sort((a, b) => {
+          const ra = recentData.ranks[a] ?? 99;
+          const rb = recentData.ranks[b] ?? 99;
+          const pa = prevData.ranks[a] ?? 99;
+          const pb = prevData.ranks[b] ?? 99;
+          return (ra - pa) - (rb - pb); // 上昇幅が大きい順
+        })
+        .slice(0, 3);
+    }
+  }
+
+  // 複数年にわたって登場している安定した概念
+  const stableConcepts = bumpData.concepts
+    .filter((c) => {
+      const appearedYears = bumpData.data.filter((d) => d.ranks[c] !== undefined).length;
+      return appearedYears >= Math.max(2, years.length - 1);
+    })
+    .slice(0, 3);
 
   return (
     <div className="max-w-5xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 lg:mb-8">
-        <div>
-          <h1 className="text-xl lg:text-2xl font-bold text-slate-800">知識分析</h1>
-          <p className="text-slate-500 text-sm mt-0.5">
-            {isAllYears ? "全期間" : `${year}年`}の読書パターンを分析
+      {keywordData.hasApiError && (
+        <div className="mb-5 bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 text-sm text-amber-800">
+          <p className="font-semibold mb-0.5">⚠️ キーワード抽出でエラーが発生しました</p>
+          <p className="text-amber-700 text-xs leading-relaxed">
+            AIによる概念抽出がAPIクレジット不足などの理由で失敗しました。
+            クレジットを追加後にページを再読み込みすると自動で再試行されます。
           </p>
         </div>
-        <Suspense>
-          <YearSelector years={years} currentYear={year} showAllOption />
-        </Suspense>
+      )}
+
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6 lg:mb-8">
+        <div>
+          <h1 className="text-xl lg:text-2xl font-bold text-slate-800">知の変遷</h1>
+          <p className="text-slate-500 text-sm mt-0.5">蓄積してきた概念の地形と変遷</p>
+        </div>
+        <VocabRefreshButton pendingCount={pendingCount} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-          <h2 className="text-sm font-semibold text-slate-600 mb-4">
-            知識レーダー（カテゴリ別強度）
-          </h2>
-          <KnowledgeRadarChart data={stats.categoryTotals} />
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-          <h2 className="text-sm font-semibold text-slate-600 mb-4">
-            カテゴリ分布
-          </h2>
-          <CategoryPieChart data={stats.categoryTotals} />
-        </div>
-
-        {!isAllYears && (
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm lg:col-span-2">
-            <h2 className="text-sm font-semibold text-slate-600 mb-4">
-              月別カテゴリ推移
-            </h2>
-            {categories.length === 0 ? (
-              <p className="text-center text-slate-400 text-sm py-8">
-                データがありません
-              </p>
-            ) : (
-              <ReadingTimelineChart
-                data={stats.monthlyByCategory}
-                categories={categories}
-              />
-            )}
+      {/* ── 学問分野の変遷 ── */}
+      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm mb-6 lg:mb-8">
+        <h2 className="text-sm font-semibold text-slate-700 mb-0.5">学問分野の変遷</h2>
+        <p className="text-xs text-slate-400 mb-4">
+          各年に読んだページ数を学問分野別に積み上げで表示しています
+        </p>
+        <DisciplineStreamChart evolutionData={disciplineData} />
+        {disciplineData.totalByDiscipline.length > 0 && (
+          <div className="mt-5 border-t border-slate-100 pt-4">
+            <p className="text-xs font-semibold text-slate-500 mb-2">全期間の分野別累計</p>
+            <div className="flex flex-wrap gap-2">
+              {disciplineData.totalByDiscipline
+                .filter((d) => d.discipline !== "未分類")
+                .map((d) => (
+                  <span key={d.discipline} className="text-xs bg-slate-50 border border-slate-100 rounded-full px-2.5 py-1 text-slate-600">
+                    {d.discipline}
+                    <span className="ml-1.5 text-slate-400 tabular-nums">{d.count}冊</span>
+                  </span>
+                ))}
+            </div>
           </div>
         )}
       </div>
 
-      {/* Category detail table */}
-      {stats.categoryTotals.length > 0 && (
-        <div className="mt-6 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-100">
-                <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500">
-                  カテゴリ
-                </th>
-                <th className="text-right px-5 py-3 text-xs font-semibold text-slate-500">
-                  冊数
-                </th>
-                <th className="text-right px-5 py-3 text-xs font-semibold text-slate-500">
-                  ページ数
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {stats.categoryTotals
-                .sort((a, b) => b.pages - a.pages)
-                .map((cat) => (
-                  <tr key={cat.category} className="hover:bg-slate-50">
-                    <td className="px-5 py-3 font-medium text-slate-700">
-                      {cat.category}
-                    </td>
-                    <td className="px-5 py-3 text-right text-slate-500">
-                      {cat.count} 冊
-                    </td>
-                    <td className="px-5 py-3 text-right text-slate-500">
-                      {cat.pages.toLocaleString()} P
-                    </td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {/* ── 静的：知識の地形図 ── */}
+      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm mb-6 lg:mb-8">
+        <h2 className="text-sm font-semibold text-slate-700 mb-0.5">知識の地形図</h2>
+        <p className="text-xs text-slate-400 mb-1">
+          円のサイズ＝蓄積量、線＝同じ本で共起した関係、色＝ピーク年（青い＝古くから、橙い＝最近）
+        </p>
+        {top3.length > 0 && (
+          <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+            最も蓄積されている概念は
+            {top3.map((c, i) => (
+              <span key={c}>
+                {i > 0 && "・"}
+                <span className="font-semibold text-slate-700">「{c}」</span>
+              </span>
+            ))}
+            。
+            {hubConcept && (
+              <> 最も多くの概念と連動しているのは<span className="font-semibold text-slate-700">「{hubConcept}」</span>です。</>
+            )}
+          </p>
+        )}
+        <ConceptForceGraph data={graphData} />
+      </div>
+
+      {/* ── 動的：思考の変遷 ── */}
+      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm mb-6 lg:mb-8">
+        <h2 className="text-sm font-semibold text-slate-700 mb-0.5">思考の変遷</h2>
+        <p className="text-xs text-slate-400 mb-1">
+          上位{bumpData.concepts.length}概念の年別ランク推移（上位＝より多く読んだ年）
+        </p>
+        {(risingConcepts.length > 0 || stableConcepts.length > 0) && (
+          <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+            {risingConcepts.length > 0 && (
+              <>
+                直近で急浮上した概念：
+                {risingConcepts.map((c, i) => (
+                  <span key={c}>{i > 0 && "・"}<span className="font-semibold text-slate-700">「{c}」</span></span>
+                ))}。{" "}
+              </>
+            )}
+            {stableConcepts.length > 0 && (
+              <>
+                長期にわたって探求している概念：
+                {stableConcepts.map((c, i) => (
+                  <span key={c}>{i > 0 && "・"}<span className="font-semibold text-slate-700">「{c}」</span></span>
+                ))}。
+              </>
+            )}
+          </p>
+        )}
+        <ConceptBumpChart data={bumpData} />
+      </div>
     </div>
   );
 }

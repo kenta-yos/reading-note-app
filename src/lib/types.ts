@@ -6,6 +6,7 @@ export type Book = {
   publishedYear: number | null;
   pages: number;
   category: string | null;
+  discipline: string | null;
   rating: number | null;
   notes: string | null;
   readAt: Date | null;
@@ -48,4 +49,15 @@ export type Category = {
   id: string;
   name: string;
   createdAt: Date;
+};
+
+export type CategoryEvolutionPoint = {
+  year: number;
+  [category: string]: number;
+};
+
+export type CategoryEvolutionData = {
+  years: number[];
+  categories: string[];
+  data: CategoryEvolutionPoint[];
 };

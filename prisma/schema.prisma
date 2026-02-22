@@ -8,17 +8,30 @@ generator client {
 }
 
 model Book {
-  id            String    @id @default(cuid())
+  id            String        @id @default(cuid())
   title         String
   author        String?
   publisher     String?
   publishedYear Int?
   pages         Int
   category      String?
+  discipline    String?
   rating        Int?
   notes         String?
   readAt        DateTime?
-  createdAt     DateTime  @default(now())
+  createdAt     DateTime      @default(now())
+  keywords      BookKeyword[]
+}
+
+model BookKeyword {
+  id      String @id @default(cuid())
+  bookId  String
+  keyword String
+  count   Int    @default(1)
+  book    Book   @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@unique([bookId, keyword])
+  @@index([keyword])
 }
 
 model Category {
