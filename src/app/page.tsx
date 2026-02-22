@@ -5,7 +5,7 @@ import MonthlyBarChart from "@/components/charts/MonthlyBarChart";
 import CategoryPieChart from "@/components/charts/CategoryPieChart";
 import BurndownChart, { type BurndownDataPoint } from "@/components/charts/BurndownChart";
 import YearSelector from "@/components/YearSelector";
-import Link from "next/link";
+import ActionLink from "@/components/ActionLink";
 import { Suspense } from "react";
 
 function buildBurndownData(
@@ -134,12 +134,26 @@ export default async function DashboardPage({
         </div>
       )}
 
-      {!stats.goal && (
-        <div className="mb-5 lg:mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-700">
-          年間目標が未設定です。{" "}
-          <Link href="/goals" className="font-semibold underline">
-            目標を設定する
-          </Link>
+      {!stats.goal ? (
+        <div className="mb-5 lg:mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-700 flex items-center justify-between">
+          <span>年間目標が未設定です。</span>
+          <ActionLink
+            href="/goals"
+            className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold transition-colors min-w-[100px]"
+            spinnerClassName="w-4 h-4 text-white"
+          >
+            🎯 目標を設定する
+          </ActionLink>
+        </div>
+      ) : (
+        <div className="mb-5 lg:mb-6">
+          <ActionLink
+            href="/goals"
+            className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:border-blue-300 hover:text-blue-600 transition-colors shadow-sm min-h-[44px]"
+            spinnerClassName="w-4 h-4 text-blue-500"
+          >
+            🎯 目標・達成状況を確認する →
+          </ActionLink>
         </div>
       )}
 

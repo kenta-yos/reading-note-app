@@ -19,6 +19,23 @@ const COLORS = [
   "#06b6d4","#f97316","#84cc16","#ec4899",
 ];
 
+const MAX_CATEGORIES = 8;
+
+function limitAndGroup(data: CategoryTotal[]) {
+  const sorted = [...data].sort((a, b) => b.pages - a.pages);
+  if (sorted.length <= MAX_CATEGORIES) return sorted;
+  const top = sorted.slice(0, MAX_CATEGORIES);
+  const rest = sorted.slice(MAX_CATEGORIES);
+  return [
+    ...top,
+    {
+      category: "その他",
+      pages: rest.reduce((s, d) => s + d.pages, 0),
+      count: rest.reduce((s, d) => s + d.count, 0),
+    },
+  ];
+}
+
 export default function CategoryPieChart({ data }: Props) {
   if (data.length === 0) {
     return (
@@ -28,17 +45,18 @@ export default function CategoryPieChart({ data }: Props) {
     );
   }
 
-  const formatted = data.map((d) => ({ name: d.category, value: d.pages }));
+  const limited = limitAndGroup(data);
+  const formatted = limited.map((d) => ({ name: d.category, value: d.pages }));
 
   return (
-    <ResponsiveContainer width="100%" height={260}>
+    <ResponsiveContainer width="100%" height={280}>
       <PieChart>
         <Pie
           data={formatted}
           cx="50%"
-          cy="50%"
-          innerRadius={60}
-          outerRadius={90}
+          cy="42%"
+          innerRadius={55}
+          outerRadius={85}
           paddingAngle={3}
           dataKey="value"
         >
@@ -46,8 +64,12 @@ export default function CategoryPieChart({ data }: Props) {
             <Cell key={i} fill={COLORS[i % COLORS.length]} />
           ))}
         </Pie>
-        <Tooltip formatter={(v) => [`${v} ページ`]} />
-        <Legend iconType="circle" iconSize={10} />
+        <Tooltip formatter={(v) => [`${Number(v).toLocaleString()} ページ`]} />
+        <Legend
+          iconType="circle"
+          iconSize={8}
+          wrapperStyle={{ fontSize: "11px", lineHeight: "1.6" }}
+        />
       </PieChart>
     </ResponsiveContainer>
   );

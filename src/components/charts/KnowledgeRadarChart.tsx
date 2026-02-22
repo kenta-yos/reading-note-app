@@ -15,6 +15,8 @@ type Props = {
   data: CategoryTotal[];
 };
 
+const MAX_CATEGORIES = 8;
+
 export default function KnowledgeRadarChart({ data }: Props) {
   if (data.length === 0) {
     return (
@@ -24,9 +26,13 @@ export default function KnowledgeRadarChart({ data }: Props) {
     );
   }
 
-  const maxPages = Math.max(...data.map((d) => d.pages), 1);
-  const formatted = data.map((d) => ({
-    subject: d.category,
+  const limited = [...data]
+    .sort((a, b) => b.pages - a.pages)
+    .slice(0, MAX_CATEGORIES);
+
+  const maxPages = Math.max(...limited.map((d) => d.pages), 1);
+  const formatted = limited.map((d) => ({
+    subject: d.category.length > 6 ? d.category.slice(0, 6) + "…" : d.category,
     strength: Math.round((d.pages / maxPages) * 100),
   }));
 
