@@ -11,6 +11,11 @@ export default async function BookDetailPage({
 }) {
   const { id } = await params;
   const book = await prisma.book.findUnique({ where: { id } });
+  const keywords = await prisma.bookKeyword.findMany({
+    where: { bookId: id, keyword: { not: "__api_error__" } },
+    select: { keyword: true },
+    orderBy: { count: "desc" },
+  });
 
   if (!book) notFound();
 
@@ -83,6 +88,25 @@ export default async function BookDetailPage({
           </span>
         )}
       </div>
+
+      {/* 抽出された概念 */}
+      {keywords.length > 0 && (
+        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm mb-4">
+          <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">
+            抽出された概念
+          </h2>
+          <div className="flex flex-wrap gap-1.5">
+            {keywords.map(({ keyword }) => (
+              <span
+                key={keyword}
+                className="text-xs bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full font-medium"
+              >
+                {keyword}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 感想 */}
       <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
