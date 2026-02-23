@@ -1,62 +1,42 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { ConceptGraphData } from "@/lib/concepts";
 
 type PositionedNode = {
-  concept: string;
-  totalCount: number;
-  peakYear: number;
-  x: number;
-  y: number;
-  r: number;
-  color: string;
+  concept: string; totalCount: number; peakYear: number;
+  x: number; y: number; r: number; labelW: number; color: string;
 };
-
 type PositionedEdge = {
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-  strength: number;
-  key: string;
+  x1: number; y1: number; x2: number; y2: number; strength: number; key: string;
 };
-
 type ConceptBook = {
-  id: string;
-  title: string;
-  author: string | null;
-  readAt: string | null;
-  rating: number | null;
+  id: string; title: string; author: string | null;
+  readAt: string | null; rating: number | null;
 };
 
-// Warm-cool color scale: old = blue, new = orange-red
 function yearToColor(year: number, minYear: number, maxYear: number): string {
   if (minYear === maxYear) return "#6366f1";
   const t = (year - minYear) / (maxYear - minYear);
-  const stops = [
-    [96, 165, 250],   // blue-400
-    [139, 92, 246],   // violet-500
-    [245, 101, 101],  // red-400
-    [249, 115, 22],   // orange-500
-  ];
+  const stops = [[96,165,250],[139,92,246],[245,101,101],[249,115,22]];
   const seg = Math.min(Math.floor(t * (stops.length - 1)), stops.length - 2);
-  const localT = t * (stops.length - 1) - seg;
-  const [r1, g1, b1] = stops[seg];
-  const [r2, g2, b2] = stops[seg + 1];
-  const r = Math.round(r1 + (r2 - r1) * localT);
-  const g = Math.round(g1 + (g2 - g1) * localT);
-  const b = Math.round(b1 + (b2 - b1) * localT);
-  return `rgb(${r},${g},${b})`;
+  const lt = t * (stops.length - 1) - seg;
+  const [r1,g1,b1] = stops[seg], [r2,g2,b2] = stops[seg+1];
+  return `rgb(${Math.round(r1+(r2-r1)*lt)},${Math.round(g1+(g2-g1)*lt)},${Math.round(b1+(b2-b1)*lt)})`;
 }
 
-const W = 720;
-const H = 720;
+// SVG 座標空間。viewBox で width:100% に自動スケール
+const W = 1100;
+const H = 900;
+const CHAR_W = 12;   // fontSize=11 の日本語1文字あたりの幅（SVG単位）
+const LABEL_H = 18;  // ラベル矩形の高さ（SVG単位）
+const LABEL_PAD_Y = 4; // ノード下端からラベル上端までの余白
 
 export default function ConceptForceGraph({ data }: { data: ConceptGraphData }) {
-  const containerRef = useRef<HTMLDivElement>(null);
   const [graph, setGraph] = useState<{ nodes: PositionedNode[]; edges: PositionedEdge[] } | null>(null);
-  const [tooltip, setTooltip] = useState<{ concept: string; totalCount: number; peakYear: number; x: number; y: number } | null>(null);
+  const [tooltip, setTooltip] = useState<{
+    concept: string; totalCount: number; peakYear: number; clientX: number; clientY: number;
+  } | null>(null);
   const [clicked, setClicked] = useState<string | null>(null);
   const [books, setBooks] = useState<ConceptBook[]>([]);
   const [booksLoading, setBooksLoading] = useState(false);
@@ -65,121 +45,146 @@ export default function ConceptForceGraph({ data }: { data: ConceptGraphData }) 
 
   useEffect(() => {
     if (!data.nodes.length) return;
-
     import("d3").then((d3) => {
       const maxCount = Math.max(...data.nodes.map((n) => n.totalCount));
-      const rScale = d3.scaleSqrt().domain([0, maxCount]).range([10, 42]);
+      const rScale = d3.scaleSqrt().domain([0, maxCount]).range([12, 44]);
 
       type SimNode = d3.SimulationNodeDatum & {
-        concept: string;
-        totalCount: number;
-        peakYear: number;
-        r: number;
+        concept: string; totalCount: number; peakYear: number; r: number; labelW: number;
       };
-
       type SimLink = d3.SimulationLinkDatum<SimNode> & { strength: number };
 
-      const simNodes: SimNode[] = data.nodes.map((n) => ({
-        ...n,
-        r: rScale(n.totalCount),
-        x: W / 2 + (Math.random() - 0.5) * 200,
-        y: H / 2 + (Math.random() - 0.5) * 200,
-      }));
+      // リング状初期配置
+      const total = data.nodes.length;
+      const initR = Math.min(W, H) * 0.28;
+      const simNodes: SimNode[] = data.nodes.map((n, i) => {
+        const angle = (i / total) * 2 * Math.PI;
+        const r = rScale(n.totalCount);
+        const labelW = n.concept.length * CHAR_W + 16;
+        return {
+          ...n, r, labelW,
+          x: W / 2 + Math.cos(angle) * initR + (Math.random() - 0.5) * 20,
+          y: H / 2 + Math.sin(angle) * initR + (Math.random() - 0.5) * 20,
+        };
+      });
 
       const nodeById = new Map(simNodes.map((n) => [n.concept, n]));
-
       const simLinks: SimLink[] = data.edges
         .filter((e) => nodeById.has(e.source) && nodeById.has(e.target))
         .map((e) => ({ ...e }));
 
-      const simulation = d3
-        .forceSimulation(simNodes)
-        .force(
-          "link",
-          d3
-            .forceLink<SimNode, SimLink>(simLinks)
-            .id((d) => d.concept)
-            .distance((d) => Math.max(100, 220 - d.strength * 8))
-        )
-        .force("charge", d3.forceManyBody().strength(-1000))
+      // ─── シミュレーション ────────────────────────────────────────
+      // forceX / forceY を完全廃止：「各ノードを中心へ引き寄せる」圧力が
+      // 境界クランプと組み合わさると同座標に重なりを生むのを防ぐ。
+      // forceCenter だけ使う（グラフ全体の重心を中心に移動するだけで個別圧力なし）
+      d3.forceSimulation(simNodes)
+        .force("link", d3.forceLink<SimNode, SimLink>(simLinks)
+          .id((d) => d.concept)
+          .distance((d) => Math.max(150, 320 - d.strength * 14)))
+        .force("charge", d3.forceManyBody().strength(-3200))
         .force("center", d3.forceCenter(W / 2, H / 2))
-        .force("x", d3.forceX(W / 2).strength(0.03))
-        .force("y", d3.forceY(H / 2).strength(0.03))
-        .force(
-          "collision",
-          // r + 36: ノード半径 + ラベル高さ(20px) + 余白(16px)
-          d3.forceCollide<SimNode>().radius((d) => d.r + 36).iterations(3)
-        )
-        .stop();
+        .force("collision", d3.forceCollide<SimNode>()
+          // 円半径＋ラベル縦余白 と ラベル幅の半分＋横余白 の大きい方
+          .radius((d) => Math.max(d.r + 60, d.labelW / 2 + 18))
+          .iterations(12))
+        .stop()
+        .tick(1500);
 
-      simulation.tick(700);
+      // ─── クランプ関数（境界内に収める） ─────────────────────────
+      const clampNode = (n: SimNode) => {
+        const mx = Math.max(n.r + 20, n.labelW / 2 + 20);
+        const yTop = n.r + 20;
+        const yBot = n.r + LABEL_PAD_Y + LABEL_H + 20;
+        n.x = Math.max(mx, Math.min(W - mx, n.x ?? W / 2));
+        n.y = Math.max(yTop, Math.min(H - yBot, n.y ?? H / 2));
+      };
 
-      for (const n of simNodes) {
-        // 下ラベル分の余白を確保（ラベル高さ約20px）
-        n.x = Math.max(n.r + 50, Math.min(W - n.r - 50, n.x ?? W / 2));
-        n.y = Math.max(n.r + 50, Math.min(H - n.r - 50, n.y ?? H / 2));
+      // 最初に全ノードをクランプ
+      simNodes.forEach(clampNode);
+
+      // ─── ポスト処理：重なりゼロ保証 ─────────────────────────────
+      // forceCollide は近似計算のため、シミュレーション後も重なりが残る場合がある。
+      // 全ペアを総当たりでチェックし、重なっていれば強制的に押し離す。
+      // 押した直後に即クランプすることで「境界デッドロック」を防ぐ。
+      for (let pass = 0; pass < 80; pass++) {
+        let moved = false;
+
+        for (let i = 0; i < simNodes.length; i++) {
+          for (let j = i + 1; j < simNodes.length; j++) {
+            const a = simNodes[i], b = simNodes[j];
+            const ax = a.x!, ay = a.y!, bx = b.x!, by = b.y!;
+
+            // ① 円同士の重なり
+            const dx = bx - ax, dy = by - ay;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const minCircle = a.r + b.r + 16;
+            if (dist < minCircle) {
+              const push = (minCircle - dist) / 2 + 1;
+              if (dist < 0.01) {
+                a.x = ax - 2; b.x = bx + 2;
+              } else {
+                const nx = dx / dist, ny = dy / dist;
+                a.x = ax - nx * push; a.y = ay - ny * push;
+                b.x = bx + nx * push; b.y = by + ny * push;
+              }
+              // 即クランプ：境界に当たった場合はそこで止まり、もう一方が多めに移動
+              clampNode(a); clampNode(b);
+              moved = true;
+              continue;
+            }
+
+            // ② ラベル同士の矩形重なり
+            // ラベルは各ノードの下に配置。中心 Y = node.y + r + PAD + LABEL_H/2
+            const aLY = ay + a.r + LABEL_PAD_Y + LABEL_H / 2;
+            const bLY = by + b.r + LABEL_PAD_Y + LABEL_H / 2;
+            const horizOvlp = Math.abs(a.x! - b.x!) < (a.labelW + b.labelW) / 2 + 8;
+            const vertOvlp  = Math.abs(aLY - bLY) < LABEL_H + 2;
+            if (horizOvlp && vertOvlp) {
+              const needed = (a.labelW + b.labelW) / 2 + 8;
+              const cur    = Math.abs(a.x! - b.x!);
+              const push   = (needed - cur) / 2 + 1;
+              const dir    = a.x! <= b.x! ? -1 : 1;
+              a.x = a.x! + dir * push;
+              b.x = b.x! - dir * push;
+              clampNode(a); clampNode(b);
+              moved = true;
+            }
+          }
+        }
+        if (!moved) break; // 重なりゼロ確認 → 早期終了
       }
 
-      const posNodes: PositionedNode[] = simNodes.map((n) => ({
-        concept: n.concept,
-        totalCount: n.totalCount,
-        peakYear: n.peakYear,
-        x: n.x!,
-        y: n.y!,
-        r: n.r,
-        color: yearToColor(n.peakYear, data.minYear, data.maxYear),
-      }));
-
-      const posEdges: PositionedEdge[] = simLinks.map((l) => {
-        const s = l.source as SimNode;
-        const t = l.target as SimNode;
-        return {
-          x1: s.x!,
-          y1: s.y!,
-          x2: t.x!,
-          y2: t.y!,
-          strength: l.strength,
-          key: `${s.concept}-${t.concept}`,
-        };
+      setGraph({
+        nodes: simNodes.map((n) => ({
+          concept: n.concept, totalCount: n.totalCount, peakYear: n.peakYear,
+          x: n.x!, y: n.y!, r: n.r, labelW: n.labelW,
+          color: yearToColor(n.peakYear, data.minYear, data.maxYear),
+        })),
+        edges: simLinks.map((l) => {
+          const s = l.source as SimNode, t = l.target as SimNode;
+          return { x1: s.x!, y1: s.y!, x2: t.x!, y2: t.y!, strength: l.strength, key: `${s.concept}-${t.concept}` };
+        }),
       });
-
-      setGraph({ nodes: posNodes, edges: posEdges });
     });
   }, [data]);
 
-  // クリックされた概念の本と説明を取得
   useEffect(() => {
-    if (!clicked) {
-      setBooks([]);
-      setDescription(null);
-      return;
-    }
-    setBooksLoading(true);
-    setDescLoading(true);
-    setDescription(null);
+    if (!clicked) { setBooks([]); setDescription(null); return; }
+    setBooksLoading(true); setDescLoading(true); setDescription(null);
     fetch(`/api/concepts/books?concept=${encodeURIComponent(clicked)}`)
-      .then((r) => r.json())
-      .then(setBooks)
-      .catch(() => setBooks([]))
+      .then((r) => r.json()).then(setBooks).catch(() => setBooks([]))
       .finally(() => setBooksLoading(false));
     fetch(`/api/concepts/description?concept=${encodeURIComponent(clicked)}`)
-      .then((r) => r.json())
-      .then((d) => setDescription(d.description ?? null))
-      .catch(() => setDescription(null))
+      .then((r) => r.json()).then((d) => setDescription(d.description ?? null)).catch(() => setDescription(null))
       .finally(() => setDescLoading(false));
   }, [clicked]);
 
   if (!data.nodes.length) {
-    return (
-      <div className="flex items-center justify-center h-64 text-slate-400 text-sm">
-        データがありません
-      </div>
-    );
+    return <div className="flex items-center justify-center h-64 text-slate-400 text-sm">データがありません</div>;
   }
 
   return (
-    <div ref={containerRef} className="relative w-full">
-      {/* Color legend */}
+    <div className="relative w-full">
       <div className="flex items-center gap-2 mb-3 text-xs text-slate-500">
         <span>古い</span>
         <div className="flex-1 h-2 rounded-full" style={{
@@ -198,96 +203,55 @@ export default function ConceptForceGraph({ data }: { data: ConceptGraphData }) 
           グラフを構築中…
         </div>
       ) : (
-        <svg
-          viewBox={`0 0 ${W} ${H}`}
-          className="w-full"
-          style={{ height: "auto", maxHeight: 520 }}
-          onClick={(e) => {
-            // SVGの背景クリックで選択解除
-            if ((e.target as SVGElement).tagName === "svg") setClicked(null);
-          }}
-        >
-          {/* Edges */}
-          {graph.edges.map((e) => (
-            <line
-              key={e.key}
-              x1={e.x1} y1={e.y1} x2={e.x2} y2={e.y2}
-              stroke="#cbd5e1"
-              strokeWidth={Math.min(e.strength * 0.9, 5)}
-              strokeOpacity={0.5}
-            />
-          ))}
-
-          {/* Nodes */}
-          {graph.nodes.map((n) => {
-            const label = n.concept;
-            const labelW = label.length * 7.5 + 8;
-            const isClicked = clicked === n.concept;
-            return (
-              <g
-                key={n.concept}
-                transform={`translate(${n.x},${n.y})`}
-                className="cursor-pointer"
-                onMouseEnter={() => setTooltip({ ...n, x: n.x, y: n.y })}
-                onMouseLeave={() => setTooltip(null)}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setClicked((prev) => (prev === n.concept ? null : n.concept));
-                  setTooltip(null);
-                }}
-              >
-                {isClicked && (
-                  <circle
-                    r={n.r + 5}
-                    fill="none"
-                    stroke="#3b82f6"
-                    strokeWidth={2.5}
-                    strokeOpacity={0.7}
-                  />
-                )}
-                <circle
-                  r={n.r}
-                  fill={n.color}
-                  fillOpacity={isClicked ? 1 : 0.82}
-                  stroke="white"
-                  strokeWidth={isClicked ? 3 : 2}
-                />
-                {/* ラベルは常にノード下に表示 */}
-                <rect
-                  x={-labelW / 2}
-                  y={n.r + 3}
-                  width={labelW}
-                  height={17}
-                  fill="white"
-                  fillOpacity={0.88}
-                  rx={3}
-                  style={{ pointerEvents: "none" }}
-                />
-                <text
-                  y={n.r + 14}
-                  textAnchor="middle"
-                  fontSize={11}
-                  fill={isClicked ? "#3b82f6" : "#334155"}
-                  fontWeight={isClicked ? "700" : "600"}
-                  style={{ pointerEvents: "none", userSelect: "none" }}
+        /* viewBox で width:100% → コンテナ幅に自動スケール。
+           高さが余れば縦スクロール発生（全体像は常に見える） */
+        <div className="overflow-auto rounded-lg border border-slate-100 bg-slate-50">
+          <svg
+            viewBox={`0 0 ${W} ${H}`}
+            width="100%"
+            style={{ display: "block", minWidth: 320 }}
+            onClick={(e) => { if ((e.target as SVGElement).tagName === "svg") setClicked(null); }}
+          >
+            {graph.edges.map((e) => (
+              <line key={e.key} x1={e.x1} y1={e.y1} x2={e.x2} y2={e.y2}
+                stroke="#cbd5e1" strokeWidth={Math.min(e.strength * 0.9, 5)} strokeOpacity={0.5} />
+            ))}
+            {graph.nodes.map((n) => {
+              const isClicked = clicked === n.concept;
+              return (
+                <g key={n.concept} transform={`translate(${n.x},${n.y})`}
+                  className="cursor-pointer"
+                  onMouseEnter={(e) => setTooltip({ ...n, clientX: e.clientX, clientY: e.clientY })}
+                  onMouseMove={(e) => setTooltip((p) => p ? { ...p, clientX: e.clientX, clientY: e.clientY } : null)}
+                  onMouseLeave={() => setTooltip(null)}
+                  onClick={(e) => { e.stopPropagation(); setClicked((p) => p === n.concept ? null : n.concept); setTooltip(null); }}
                 >
-                  {label}
-                </text>
-              </g>
-            );
-          })}
-        </svg>
+                  {isClicked && <circle r={n.r + 5} fill="none" stroke="#3b82f6" strokeWidth={2.5} strokeOpacity={0.7} />}
+                  <circle r={n.r} fill={n.color} fillOpacity={isClicked ? 1 : 0.82}
+                    stroke="white" strokeWidth={isClicked ? 3 : 2} />
+                  <rect
+                    x={-n.labelW / 2} y={n.r + LABEL_PAD_Y}
+                    width={n.labelW} height={LABEL_H}
+                    fill="white" fillOpacity={0.9} rx={3} style={{ pointerEvents: "none" }}
+                  />
+                  <text
+                    y={n.r + LABEL_PAD_Y + 13} textAnchor="middle" fontSize={11}
+                    fill={isClicked ? "#3b82f6" : "#334155"} fontWeight={isClicked ? "700" : "600"}
+                    style={{ pointerEvents: "none", userSelect: "none" }}
+                  >
+                    {n.concept}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+        </div>
       )}
 
-      {/* Hover Tooltip */}
+      {/* ツールチップ（viewport 固定座標） */}
       {tooltip && !clicked && (
-        <div
-          className="absolute z-10 bg-white border border-slate-200 rounded-lg shadow-lg p-3 text-xs pointer-events-none"
-          style={{
-            left: `${(tooltip.x / W) * 100}%`,
-            top: `${(tooltip.y / H) * 100}%`,
-            transform: "translate(-50%, -120%)",
-          }}
+        <div className="fixed z-50 bg-white border border-slate-200 rounded-lg shadow-lg p-3 text-xs pointer-events-none"
+          style={{ left: tooltip.clientX, top: tooltip.clientY, transform: "translate(-50%, calc(-100% - 12px))" }}
         >
           <p className="font-semibold text-slate-800 mb-1">{tooltip.concept}</p>
           <p className="text-slate-500">蓄積回数: <span className="font-medium text-slate-700">{tooltip.totalCount}</span></p>
@@ -298,7 +262,6 @@ export default function ConceptForceGraph({ data }: { data: ConceptGraphData }) 
         </div>
       )}
 
-      {/* クリック選択中の本リスト */}
       {clicked && (
         <div className="mt-3 rounded-lg border border-blue-100 bg-blue-50 overflow-hidden">
           <div className="flex items-center justify-between px-3 py-2 border-b border-blue-100">
@@ -308,21 +271,13 @@ export default function ConceptForceGraph({ data }: { data: ConceptGraphData }) 
                 <span className="ml-1.5 font-normal text-blue-500">（{books.length}冊）</span>
               )}
             </p>
-            <button
-              onClick={() => setClicked(null)}
-              className="text-xs text-blue-400 hover:text-blue-600 transition-colors"
-            >
+            <button onClick={() => setClicked(null)} className="text-xs text-blue-400 hover:text-blue-600 transition-colors">
               閉じる
             </button>
           </div>
-          {/* 概念説明 */}
           {(descLoading || description) && (
             <div className="px-3 py-2 border-b border-blue-100 text-xs text-slate-600 leading-relaxed">
-              {descLoading ? (
-                <span className="text-slate-400 italic">説明を生成中…</span>
-              ) : (
-                description
-              )}
+              {descLoading ? <span className="text-slate-400 italic">説明を生成中…</span> : description}
             </div>
           )}
           <div className="px-3 py-2">
@@ -334,19 +289,9 @@ export default function ConceptForceGraph({ data }: { data: ConceptGraphData }) 
               <div className="space-y-0.5">
                 {books.map((b) => (
                   <div key={b.id} className="flex items-center gap-2 px-2 py-1.5">
-                    <span className="flex-1 text-xs text-slate-700 font-medium truncate">
-                      {b.title}
-                    </span>
-                    {b.author && (
-                      <span className="text-xs text-slate-400 shrink-0 truncate max-w-[90px] hidden sm:block">
-                        {b.author}
-                      </span>
-                    )}
-                    {b.readAt && (
-                      <span className="text-xs text-slate-300 shrink-0">
-                        {new Date(b.readAt).getFullYear()}年
-                      </span>
-                    )}
+                    <span className="flex-1 text-xs text-slate-700 font-medium truncate">{b.title}</span>
+                    {b.author && <span className="text-xs text-slate-400 shrink-0 truncate max-w-[90px] hidden sm:block">{b.author}</span>}
+                    {b.readAt && <span className="text-xs text-slate-300 shrink-0">{new Date(b.readAt).getFullYear()}年</span>}
                   </div>
                 ))}
               </div>

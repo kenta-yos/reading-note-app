@@ -2,22 +2,22 @@ export const dynamic = "force-dynamic";
 
 import { getConceptGraph, getConceptBump } from "@/lib/concepts";
 import { getKeywordHeatmap } from "@/lib/keywords";
-import { getDisciplineBump, getVocabHealth } from "@/lib/stats";
+import { getDisciplineTotals, getVocabHealth } from "@/lib/stats";
 import { prisma } from "@/lib/prisma";
 import { API_ERROR_SENTINEL } from "@/lib/keyword-extractor";
 import ConceptForceGraph from "@/components/charts/ConceptForceGraph";
 import ConceptBumpChart from "@/components/charts/ConceptBumpChart";
-import DisciplineBumpChart from "@/components/charts/DisciplineBumpChart";
+import KnowledgeRadarChart from "@/components/charts/KnowledgeRadarChart";
 import VocabRefreshButton from "@/components/VocabRefreshButton";
 import VocabHealthCard from "@/components/VocabHealthCard";
 
 export default async function AnalyticsPage() {
-  const [graphData, bumpData, keywordData, disciplineBumpData, pendingBooks, vocabHealth] =
+  const [graphData, bumpData, keywordData, disciplineTotals, pendingBooks, vocabHealth] =
     await Promise.all([
       getConceptGraph(),
       getConceptBump(),
       getKeywordHeatmap(),
-      getDisciplineBump(),
+      getDisciplineTotals(),
       prisma.book.findMany({
         where: {
           readAt: { not: null },
@@ -162,13 +162,19 @@ export default async function AnalyticsPage() {
         <ConceptBumpChart data={bumpData} />
       </div>
 
-      {/* ── 学問分野の変遷 ── */}
+      {/* ── 学問分野のレーダーチャート ── */}
       <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm mb-6 lg:mb-8">
-        <h2 className="text-sm font-semibold text-slate-700 mb-0.5">学問分野の変遷</h2>
+        <h2 className="text-sm font-semibold text-slate-700 mb-0.5">学問分野の分布</h2>
         <p className="text-xs text-slate-400 mb-4">
-          上位{disciplineBumpData.disciplines.length}分野の年別ランク推移（上位＝その年により多く読んだ分野）
+          各分野の読書量（ページ数ベース。面積が大きいほど多く読んでいる）
         </p>
-        <DisciplineBumpChart data={disciplineBumpData} />
+        <KnowledgeRadarChart
+          data={disciplineTotals.map((d) => ({
+            category: d.discipline,
+            pages: d.pages,
+            count: d.count,
+          }))}
+        />
       </div>
     </div>
   );

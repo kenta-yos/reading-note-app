@@ -1,12 +1,18 @@
-import { getStatsForYear, getAvailableYears } from "@/lib/stats";
+export const dynamic = "force-dynamic";
+
+import { Suspense } from "react";
+import { getStatsForYear, getAvailableYears, getYearlyTrend } from "@/lib/stats";
+import { getConceptGraph } from "@/lib/concepts";
+import { prisma } from "@/lib/prisma";
 import StatCard from "@/components/StatCard";
 import GoalProgressBar from "@/components/GoalProgressBar";
-import MonthlyBarChart from "@/components/charts/MonthlyBarChart";
-import CategoryPieChart from "@/components/charts/CategoryPieChart";
 import BurndownChart, { type BurndownDataPoint } from "@/components/charts/BurndownChart";
+import MonthlyBarChart from "@/components/charts/MonthlyBarChart";
+import CategoryStackedBar from "@/components/charts/CategoryStackedBar";
+import AnnualPagesChart from "@/components/charts/AnnualPagesChart";
+import ConceptForceGraph from "@/components/charts/ConceptForceGraph";
 import YearSelector from "@/components/YearSelector";
 import ActionLink from "@/components/ActionLink";
-import { Suspense } from "react";
 
 function buildBurndownData(
   monthlyPages: { month: number; pages: number }[],
@@ -15,14 +21,12 @@ function buildBurndownData(
   viewYear: number
 ): BurndownDataPoint[] {
   const today = new Date();
-  // 表示年が現在年の場合のみ当月まで actual を描画、それ以外は全月 actual
   const isCurrentYear = viewYear === currentYear;
   const currentMonth = isCurrentYear ? today.getMonth() + 1 : 12;
 
   let cumulative = 0;
   const pagesByMonth = new Map(monthlyPages.map((m) => [m.month, m.pages]));
 
-  // actual の累積を currentMonth まで計算してから projection を求める
   let cumulativeAtCurrentMonth = 0;
   for (let m = 1; m <= currentMonth; m++) {
     cumulativeAtCurrentMonth += pagesByMonth.get(m) ?? 0;
@@ -33,8 +37,6 @@ function buildBurndownData(
   return Array.from({ length: 12 }, (_, i) => {
     const month = i + 1;
     const monthPages = pagesByMonth.get(month) ?? 0;
-
-    // 目標ペース（線形）
     const target = goal > 0 ? Math.round((goal / 12) * month) : null;
 
     let actual: number | null = null;
@@ -43,23 +45,16 @@ function buildBurndownData(
     if (month <= currentMonth) {
       cumulative += monthPages;
       actual = cumulative;
-      // 当月は projection の起点にもなる
       if (month === currentMonth && isCurrentYear) {
         projection = cumulative;
       }
     } else if (isCurrentYear) {
-      // 将来月は予測
       projection = Math.round(
         cumulativeAtCurrentMonth + avgPerMonth * (month - currentMonth)
       );
     }
 
-    return {
-      month: `${month}月`,
-      target,
-      actual,
-      projection,
-    };
+    return { month: `${month}月`, target, actual, projection };
   });
 }
 
@@ -76,111 +71,200 @@ export default async function DashboardPage({
   const year = params.year ? parseInt(params.year) : currentYear;
   const isCurrentYear = year === currentYear;
 
-  const [stats, availableYears] = await Promise.all([
+  const [stats, availableYears, yearlyTrend, graphData, yearBooks] = await Promise.all([
     getStatsForYear(year),
     getAvailableYears(),
+    getYearlyTrend(),
+    getConceptGraph(year),
+    prisma.book.findMany({
+      where: {
+        readAt: {
+          gte: new Date(year, 0, 1),
+          lt: new Date(year + 1, 0, 1),
+        },
+      },
+      select: { id: true, title: true, author: true, readAt: true },
+      orderBy: { readAt: "asc" },
+    }),
   ]);
 
   const years = [...new Set([...availableYears, currentYear])].sort((a, b) => b - a);
 
-  // 当月のページ数（現在年のみ）
+  // 月ごとの本リスト
+  const booksByMonth: Record<number, { id: string; title: string; author: string | null }[]> = {};
+  for (const book of yearBooks) {
+    if (book.readAt) {
+      const m = book.readAt.getMonth() + 1;
+      if (!booksByMonth[m]) booksByMonth[m] = [];
+      booksByMonth[m].push({ id: book.id, title: book.title, author: book.author });
+    }
+  }
+
   const pagesThisMonth = isCurrentYear
     ? (stats.monthlyPages.find((m) => m.month === currentMonth)?.pages ?? 0)
     : undefined;
 
-  // バーンダウンチャートデータ（目標がある場合のみ）
-  const burndownData = stats.goal
-    ? buildBurndownData(stats.monthlyPages, stats.goal.pageGoal, currentYear, year)
+  const goalPages = stats.goal?.pageGoal ?? 0;
+  const burndownData = goalPages > 0
+    ? buildBurndownData(stats.monthlyPages, goalPages, currentYear, year)
     : null;
 
   return (
     <div className="max-w-5xl mx-auto">
-      {/* Header */}
+
+      {/* ── ヘッダー ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 lg:mb-8">
         <div>
           <h1 className="text-xl lg:text-2xl font-bold text-slate-800">ダッシュボード</h1>
-          <p className="text-slate-500 text-sm mt-0.5">{year}年の読書状況</p>
+          <p className="text-slate-500 text-sm mt-0.5">{year}年の読書記録</p>
         </div>
         <Suspense>
           <YearSelector years={years} currentYear={year} />
         </Suspense>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-3 lg:gap-4 mb-5 lg:mb-6">
+      {/* ── 1. サマリー ── */}
+      <div className="grid grid-cols-2 gap-3 lg:gap-4 mb-6 lg:mb-8">
         <StatCard title="読書数" value={`${stats.totalBooks} 冊`} icon="📚" />
         <StatCard
           title="読書量"
           value={`${stats.totalPages.toLocaleString()} P`}
           icon="📖"
-        />
-        <StatCard
-          title="カテゴリ"
-          value={`${stats.categoryTotals.length} 分野`}
-          icon="🗂️"
+          sub={stats.totalBooks > 0 ? `平均 ${Math.round(stats.totalPages / stats.totalBooks).toLocaleString()} P/冊` : undefined}
         />
       </div>
 
-      {/* Goal */}
-      {stats.goal && (
-        <div className="mb-5 lg:mb-6">
-          <GoalProgressBar
-            current={stats.totalPages}
-            goal={stats.goal.pageGoal}
-            year={year}
-            pagesThisMonth={pagesThisMonth}
-            currentMonth={isCurrentYear ? currentMonth : undefined}
-          />
-        </div>
-      )}
-
-      {!stats.goal ? (
-        <div className="mb-5 lg:mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-700 flex items-center justify-between">
-          <span>年間目標が未設定です。</span>
+      {/* ── 2. 読書計画 ── */}
+      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm mb-6 lg:mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-700">読書計画</h2>
+            <p className="text-xs text-slate-400 mt-0.5">年間目標に対する進捗</p>
+          </div>
           <ActionLink
             href="/goals"
-            className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold transition-colors min-w-[100px]"
-            spinnerClassName="w-4 h-4 text-white"
+            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-blue-600 border border-slate-200 hover:border-blue-300 px-3 py-1.5 rounded-lg transition-colors bg-white min-w-[80px] justify-center"
+            spinnerClassName="w-3 h-3"
           >
-            🎯 目標を設定する
+            🎯 目標を設定
           </ActionLink>
         </div>
-      ) : (
-        <div className="mb-5 lg:mb-6">
-          <ActionLink
-            href="/goals"
-            className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:border-blue-300 hover:text-blue-600 transition-colors shadow-sm min-h-[44px]"
-            spinnerClassName="w-4 h-4 text-blue-500"
-          >
-            🎯 目標・達成状況を確認する →
-          </ActionLink>
-        </div>
-      )}
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-        <div className="bg-white border border-slate-200 rounded-xl p-4 lg:p-5 shadow-sm">
-          <h2 className="text-sm font-semibold text-slate-600 mb-3 lg:mb-4">月別読書ページ数</h2>
-          <MonthlyBarChart data={stats.monthlyPages} />
-        </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-4 lg:p-5 shadow-sm">
-          <h2 className="text-sm font-semibold text-slate-600 mb-3 lg:mb-4">カテゴリ分布</h2>
-          <CategoryPieChart data={stats.categoryTotals} />
-        </div>
+        {goalPages > 0 ? (
+          <>
+            {/* 進捗バー */}
+            <div className="mb-5">
+              {/* 数値サマリー */}
+              <div className="flex items-end justify-between mb-2">
+                <p className="text-xs text-slate-500">
+                  <span className="text-2xl font-bold text-slate-800 tabular-nums">
+                    {Math.min(Math.round((stats.totalPages / goalPages) * 100), 100)}
+                  </span>
+                  <span className="ml-0.5 text-slate-500">%</span>
+                </p>
+                <p className="text-xs text-slate-400 tabular-nums">
+                  {stats.totalPages.toLocaleString()} / {goalPages.toLocaleString()} P
+                </p>
+              </div>
+              <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${Math.min((stats.totalPages / goalPages) * 100, 100)}%`,
+                    backgroundColor: stats.totalPages >= goalPages ? "#10b981" : "#3b82f6",
+                  }}
+                />
+              </div>
+              <div className="flex justify-between mt-1.5">
+                <p className="text-xs text-slate-400">
+                  残り {Math.max(goalPages - stats.totalPages, 0).toLocaleString()} P
+                </p>
+                {/* 今月あと何ページ */}
+                {isCurrentYear && pagesThisMonth !== undefined && stats.totalPages < goalPages && (() => {
+                  const remaining = goalPages - stats.totalPages;
+                  const monthsLeft = 12 - currentMonth + 1;
+                  const needed = Math.max(0, Math.ceil(remaining / monthsLeft - pagesThisMonth));
+                  return needed > 0 ? (
+                    <p className="text-xs text-blue-600 font-medium tabular-nums">
+                      今月あと {needed.toLocaleString()} P でペース通り
+                    </p>
+                  ) : (
+                    <p className="text-xs text-emerald-600 font-medium">今月のペース達成 ✓</p>
+                  );
+                })()}
+              </div>
+            </div>
+
+            {/* バーンチャート */}
+            {burndownData && (
+              <div>
+                <p className="text-xs text-slate-400 mb-3">
+                  現在のペースで読み続けると年末に到達する累計ページ数の予測
+                </p>
+                <BurndownChart data={burndownData} />
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="text-center py-6">
+            <p className="text-sm text-slate-400 mb-3">今年の目標がまだ設定されていません</p>
+            <ActionLink
+              href="/goals"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium transition-colors min-w-[140px] justify-center"
+              spinnerClassName="w-4 h-4 text-white"
+            >
+              🎯 目標を設定する
+            </ActionLink>
+          </div>
+        )}
       </div>
 
-      {/* Burndown Chart */}
-      {burndownData && (
-        <div className="mt-4 lg:mt-6 bg-white border border-slate-200 rounded-xl p-4 lg:p-5 shadow-sm">
-          <h2 className="text-sm font-semibold text-slate-600 mb-1">
-            年間ペース予測
-          </h2>
-          <p className="text-xs text-slate-400 mb-3 lg:mb-4">
-            現在のペースで読み続けると年末に到達する累計ページ数の予測です
+      {/* ── 3. 実績 ── */}
+      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm mb-6 lg:mb-8">
+        <h2 className="text-sm font-semibold text-slate-700 mb-0.5">月別実績</h2>
+        <p className="text-xs text-slate-400 mb-4">
+          棒グラフをタップするとその月に読んだ本を表示します
+        </p>
+        <MonthlyBarChart data={stats.monthlyPages} booksByMonth={booksByMonth} />
+      </div>
+
+      {/* ── 4. 知識分析 ── */}
+      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm mb-6 lg:mb-8">
+        <h2 className="text-sm font-semibold text-slate-700 mb-0.5">知識分析</h2>
+        <p className="text-xs text-slate-400 mb-4">{year}年のカテゴリ内訳と概念ネットワーク</p>
+
+        {/* カテゴリ横積み上げバー */}
+        {stats.categoryTotals.length > 0 ? (
+          <div className="mb-6">
+            <p className="text-xs font-medium text-slate-500 mb-2">カテゴリ内訳</p>
+            <CategoryStackedBar data={stats.categoryTotals} />
+          </div>
+        ) : (
+          <p className="text-xs text-slate-400 mb-5">カテゴリデータがありません</p>
+        )}
+
+        {/* 知識の地形図 */}
+        <div>
+          <p className="text-xs font-medium text-slate-500 mb-1">知識の地形図</p>
+          <p className="text-xs text-slate-400 mb-3">
+            円サイズ＝蓄積量、線＝同じ本で共起した関係、色＝ピーク年（青い＝古くから、橙い＝最近）
           </p>
-          <BurndownChart data={burndownData} />
+          <ConceptForceGraph data={graphData} />
+        </div>
+      </div>
+
+      {/* ── 5. 年別推移（全年度） ── */}
+      {yearlyTrend.length >= 1 && (
+        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm mb-6 lg:mb-8">
+          <h2 className="text-sm font-semibold text-slate-700 mb-0.5">年別推移</h2>
+          <p className="text-xs text-slate-400 mb-4">
+            全年度の読書量（緑＝目標達成、青＝未達成、灰＝目標未設定）
+            — 橙の点が目標値
+          </p>
+          <AnnualPagesChart data={yearlyTrend} />
         </div>
       )}
+
     </div>
   );
 }

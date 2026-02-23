@@ -35,11 +35,15 @@ export type ConceptBumpData = {
   data: ConceptRankYear[];
 };
 
-export async function getConceptGraph(): Promise<ConceptGraphData> {
+export async function getConceptGraph(year?: number): Promise<ConceptGraphData> {
+  const dateFilter = year
+    ? { gte: new Date(year, 0, 1), lt: new Date(year + 1, 0, 1) }
+    : { not: null as null };
+
   const rows = await prisma.bookKeyword.findMany({
     where: {
       keyword: { not: API_ERROR_SENTINEL },
-      book: { readAt: { not: null } },
+      book: { readAt: dateFilter },
     },
     select: {
       keyword: true,

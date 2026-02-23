@@ -2,13 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Spinner from "@/components/Spinner";
-import GoalComparisonChart from "@/components/charts/GoalComparisonChart";
-
-type GoalData = {
-  year: number;
-  actual: number;
-  goal: number;
-};
 
 export default function GoalsPage() {
   const currentYear = new Date().getFullYear();
@@ -17,10 +10,7 @@ export default function GoalsPage() {
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
-  const [chartData, setChartData] = useState<GoalData[]>([]);
-  const [loadingChart, setLoadingChart] = useState(true);
 
-  // データが存在する年を取得
   useEffect(() => {
     fetch("/api/years")
       .then((r) => r.json())
@@ -28,41 +18,14 @@ export default function GoalsPage() {
   }, []);
 
   useEffect(() => {
-    const fetchGoal = async () => {
-      const res = await fetch(`/api/goals/${selectedYear}`);
-      const goal = await res.json();
-      setGoalInput(goal?.pageGoal ? String(goal.pageGoal) : "");
-    };
-    fetchGoal();
+    setGoalInput("");
+    setMessage("");
+    fetch(`/api/goals/${selectedYear}`)
+      .then((r) => r.json())
+      .then((goal) => {
+        if (goal?.pageGoal) setGoalInput(String(goal.pageGoal));
+      });
   }, [selectedYear]);
-
-  useEffect(() => {
-    if (availableYears.length === 0) return;
-    const fetchChart = async () => {
-      setLoadingChart(true);
-      try {
-        const results = await Promise.all(
-          availableYears.map(async (y) => {
-            const [statsRes, goalRes] = await Promise.all([
-              fetch(`/api/stats?year=${y}`),
-              fetch(`/api/goals/${y}`),
-            ]);
-            const stats = await statsRes.json();
-            const goal = await goalRes.json();
-            return {
-              year: y,
-              actual: stats.totalPages ?? 0,
-              goal: goal?.pageGoal ?? 0,
-            };
-          })
-        );
-        setChartData(results.filter((d) => d.actual > 0 || d.goal > 0));
-      } finally {
-        setLoadingChart(false);
-      }
-    };
-    fetchChart();
-  }, [saving, availableYears]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,76 +47,70 @@ export default function GoalsPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-xl mx-auto">
       <div className="mb-6 lg:mb-8">
-        <h1 className="text-xl lg:text-2xl font-bold text-slate-800">年間目標</h1>
-        <p className="text-slate-500 text-sm mt-0.5">年ごとのページ数目標を設定</p>
+        <h1 className="text-xl lg:text-2xl font-bold text-slate-800">年間目標の設定</h1>
+        <p className="text-slate-500 text-sm mt-0.5">年ごとのページ数目標を設定します</p>
       </div>
 
-      {/* Goal setting form */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4 lg:p-6 shadow-sm mb-5 lg:mb-6">
-        <h2 className="text-sm font-semibold text-slate-600 mb-4">目標を設定</h2>
-        <form onSubmit={handleSave} className="flex flex-col sm:flex-row flex-wrap gap-3 items-stretch sm:items-end">
-          <div>
-            <label className="block text-xs text-slate-500 mb-1">対象年</label>
-            <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(Number(e.target.value))}
-              className="p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white text-sm"
-            >
-              {availableYears.map((y) => (
-                <option key={y} value={y}>
-                  {y}年
-                </option>
-              ))}
-            </select>
+      <div className="bg-white border border-slate-200 rounded-xl p-5 lg:p-6 shadow-sm">
+        <form onSubmit={handleSave} className="flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div>
+              <label className="block text-xs text-slate-500 mb-1.5 font-medium">対象年</label>
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(Number(e.target.value))}
+                className="p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white text-sm"
+              >
+                {availableYears.map((y) => (
+                  <option key={y} value={y}>
+                    {y}年
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs text-slate-500 mb-1.5 font-medium">
+                目標ページ数
+              </label>
+              <input
+                type="number"
+                value={goalInput}
+                onChange={(e) => setGoalInput(e.target.value)}
+                placeholder="例：10000"
+                min="1"
+                className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                required
+              />
+            </div>
           </div>
-          <div className="flex-1 min-w-40">
-            <label className="block text-xs text-slate-500 mb-1">目標ページ数</label>
-            <input
-              type="number"
-              value={goalInput}
-              onChange={(e) => setGoalInput(e.target.value)}
-              placeholder="例：10000"
-              min="1"
-              className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-              required
-            />
-          </div>
+
           <button
             type="submit"
             disabled={saving}
-            className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 active:scale-95 transition disabled:opacity-60 disabled:cursor-not-allowed"
+            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 active:scale-95 transition disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {saving ? (
               <>
                 <Spinner className="w-4 h-4" />
-                <span>保存中...</span>
+                <span>保存中…</span>
               </>
             ) : (
-              "保存"
+              "保存する"
             )}
           </button>
         </form>
-        {message && (
-          <p className={`mt-3 text-sm font-medium ${message.includes("エラー") ? "text-red-600" : "text-green-600"}`}>
-            {message.includes("エラー") ? "⚠ " : "✓ "}{message}
-          </p>
-        )}
-      </div>
 
-      {/* Comparison chart */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-        <h2 className="text-sm font-semibold text-slate-600 mb-4">
-          年間目標 vs 実績
-        </h2>
-        {loadingChart ? (
-          <div className="flex items-center justify-center gap-2 text-slate-400 text-sm py-8">
-            <Spinner className="w-4 h-4" />
-            <span>読み込み中...</span>
-          </div>
-        ) : (
-          <GoalComparisonChart data={chartData} />
+        {message && (
+          <p
+            className={`mt-3 text-sm font-medium ${
+              message.includes("エラー") ? "text-red-600" : "text-emerald-600"
+            }`}
+          >
+            {message.includes("エラー") ? "⚠ " : "✓ "}
+            {message}
+          </p>
         )}
       </div>
     </div>

@@ -46,3 +46,9 @@ model AnnualGoal {
   pageGoal  Int
   createdAt DateTime @default(now())
 }
+
+model WatchPublisher {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+}

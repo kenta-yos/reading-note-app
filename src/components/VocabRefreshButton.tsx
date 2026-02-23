@@ -35,7 +35,8 @@ export default function VocabRefreshButton({ pendingCount, pendingBooks }: Props
       }
 
       setState("done");
-      setMessage(`完了しました（${totalProcessed} 冊処理）。ページを再読み込みすると反映されます。`);
+      setMessage(`完了しました（${totalProcessed} 冊処理）。ページを再読み込みします…`);
+      setTimeout(() => window.location.reload(), 1500);
     } catch (e) {
       setState("error");
       setMessage(`エラーが発生しました: ${e instanceof Error ? e.message : String(e)}`);

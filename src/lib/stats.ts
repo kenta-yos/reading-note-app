@@ -214,6 +214,32 @@ export async function getDisciplineEvolution(): Promise<DisciplineEvolutionData>
   return { years, disciplines, data, totalByDiscipline };
 }
 
+export type DisciplineTotal = {
+  discipline: string;
+  pages: number;
+  count: number;
+};
+
+/** 全期間の学問分野別合計（レーダーチャート用）*/
+export async function getDisciplineTotals(): Promise<DisciplineTotal[]> {
+  const books = await prisma.book.findMany({
+    where: { readAt: { not: null } },
+    select: { discipline: true, pages: true },
+  });
+
+  const map = new Map<string, { pages: number; count: number }>();
+  for (const book of books) {
+    const disc = book.discipline;
+    if (!disc || disc === "未分類") continue;
+    const prev = map.get(disc) ?? { pages: 0, count: 0 };
+    map.set(disc, { pages: prev.pages + book.pages, count: prev.count + 1 });
+  }
+
+  return [...map.entries()]
+    .sort((a, b) => b[1].pages - a[1].pages)
+    .map(([discipline, { pages, count }]) => ({ discipline, pages, count }));
+}
+
 const MAX_BUMP_DISCIPLINES = 12;
 
 export async function getDisciplineBump(): Promise<DisciplineBumpData> {
@@ -262,20 +288,22 @@ export async function getDisciplineBump(): Promise<DisciplineBumpData> {
 // ─── 語彙健全性指標 ───────────────────────────────────────────
 
 export type VocabHealthData = {
-  /** 全期間の語彙適合率（0〜1） */
+  /** 全期間の語彙適合率（0〜1）。2語彙以上マッチで「マッチ」とみなす */
   matchRate: number;
   /** 直近2年の語彙適合率（0〜1） */
   recentMatchRate: number;
   /** 処理済み冊数（API成功）*/
   totalProcessed: number;
-  /** 少なくとも1語彙マッチした冊数 */
+  /** 語彙が2つ以上マッチした冊数 */
   totalMatched: number;
-  /** 語彙に一致なし（__no_concepts__ または語彙外概念のみ）の冊数 */
+  /** 語彙に一致なし（またはマッチ1つ以下）の冊数 */
   totalNoMatch: number;
   /** 語彙外で抽出された概念（頻度降順） */
   outOfVocabConcepts: { concept: string; count: number }[];
   /** 年別適合率 */
   yearlyRates: { year: number; rate: number; total: number }[];
+  /** 語彙不一致の書籍一覧 */
+  noMatchBooks: { id: string; title: string }[];
 };
 
 export async function getVocabHealth(): Promise<VocabHealthData> {
@@ -286,6 +314,7 @@ export async function getVocabHealth(): Promise<VocabHealthData> {
     where: { readAt: { not: null } },
     select: {
       id: true,
+      title: true,
       readAt: true,
       keywords: { select: { keyword: true } },
     },
@@ -295,6 +324,7 @@ export async function getVocabHealth(): Promise<VocabHealthData> {
   let totalNoMatch = 0;
   const yearData = new Map<number, { matched: number; noMatch: number }>();
   const outOfVocabCount = new Map<string, number>();
+  const noMatchBooks: { id: string; title: string }[] = [];
 
   for (const book of books) {
     const keywords = book.keywords.map((k) => k.keyword);
@@ -312,14 +342,15 @@ export async function getVocabHealth(): Promise<VocabHealthData> {
     if (!yearData.has(year)) yearData.set(year, { matched: 0, noMatch: 0 });
 
     if (realKeywords.length > 0) {
-      const hasVocabMatch = realKeywords.some((k) => vocabSet.has(k));
-      if (hasVocabMatch) {
+      const vocabMatchCount = realKeywords.filter((k) => vocabSet.has(k)).length;
+      if (vocabMatchCount >= 2) {
         totalMatched++;
         yearData.get(year)!.matched++;
       } else {
-        // 語彙外概念のみ（リストにない概念のみ抽出された）
+        // 語彙外概念のみ、またはマッチ1つ以下
         totalNoMatch++;
         yearData.get(year)!.noMatch++;
+        noMatchBooks.push({ id: book.id, title: book.title });
       }
       // 語彙外概念を集計
       for (const k of realKeywords) {
@@ -331,6 +362,7 @@ export async function getVocabHealth(): Promise<VocabHealthData> {
       // API成功だが語彙リストに一致する概念なし
       totalNoMatch++;
       yearData.get(year)!.noMatch++;
+      noMatchBooks.push({ id: book.id, title: book.title });
     }
   }
 
@@ -369,5 +401,34 @@ export async function getVocabHealth(): Promise<VocabHealthData> {
     totalNoMatch,
     outOfVocabConcepts,
     yearlyRates,
+    noMatchBooks,
   };
+}
+
+export async function getYearlyTrend(): Promise<
+  { year: number; pages: number; goal: number | null }[]
+> {
+  const [books, goals] = await Promise.all([
+    prisma.book.findMany({
+      where: { readAt: { not: null } },
+      select: { readAt: true, pages: true },
+    }),
+    prisma.annualGoal.findMany(),
+  ]);
+
+  const goalMap = new Map(goals.map((g) => [g.year, g.pageGoal]));
+  const yearMap = new Map<number, number>();
+
+  for (const book of books) {
+    const year = book.readAt!.getFullYear();
+    yearMap.set(year, (yearMap.get(year) ?? 0) + book.pages);
+  }
+
+  return [...yearMap.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([year, pages]) => ({
+      year,
+      pages,
+      goal: goalMap.get(year) ?? null,
+    }));
 }

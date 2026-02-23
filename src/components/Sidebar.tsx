@@ -8,6 +8,7 @@ const navItems = [
   { href: "/books", label: "読書記録", icon: "📚" },
   { href: "/books/new", label: "本を登録", icon: "➕" },
   { href: "/analytics", label: "知識分析", icon: "🧠" },
+  { href: "/discover", label: "新刊を探す", icon: "🔍" },
   { href: "/goals", label: "年間目標", icon: "🎯" },
   { href: "/categories", label: "カテゴリ管理", icon: "🗂️" },
 ];
