@@ -5,9 +5,10 @@ import type { NDLBook } from "@/lib/ndl";
 
 type Props = {
   books: NDLBook[];
+  userDisciplines?: string[];
 };
 
-function BookRow({ book }: { book: NDLBook }) {
+function BookRow({ book, userDisciplines = [] }: { book: NDLBook; userDisciplines: string[] }) {
   const titleEl = book.ndlUrl ? (
     <a
       href={book.ndlUrl}
@@ -30,8 +31,13 @@ function BookRow({ book }: { book: NDLBook }) {
         )}
         <span className="text-xs text-slate-400">{book.publisher}</span>
         <span className="text-xs text-slate-400 font-mono">{book.issued}</span>
-        {book.discipline && (
-          <span className="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">
+        {book.discipline && userDisciplines.includes(book.discipline) && (
+          <span className="text-xs bg-emerald-100 text-emerald-700 font-medium px-1.5 py-0.5 rounded">
+            ★ {book.discipline}
+          </span>
+        )}
+        {book.discipline && !userDisciplines.includes(book.discipline) && (
+          <span className="text-xs bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded">
             {book.discipline}
           </span>
         )}
@@ -40,7 +46,7 @@ function BookRow({ book }: { book: NDLBook }) {
   );
 }
 
-export default function BookListWithFilter({ books }: Props) {
+export default function BookListWithFilter({ books, userDisciplines = [] }: Props) {
   const [selectedDisc, setSelectedDisc] = useState<string | null>(null);
 
   // 分野タグを件数付きで収集
@@ -72,20 +78,28 @@ export default function BookListWithFilter({ books }: Props) {
           >
             すべて ({books.length})
           </button>
-          {disciplines.map(([disc, count]) => (
-            <button
-              key={disc}
-              onClick={() => setSelectedDisc(disc === selectedDisc ? null : disc)}
-              className={[
-                "px-2.5 py-1 rounded-full text-xs font-medium transition-colors",
-                selectedDisc === disc
-                  ? "bg-blue-600 text-white"
-                  : "bg-slate-100 text-slate-500 hover:bg-slate-200",
-              ].join(" ")}
-            >
-              {disc} ({count})
-            </button>
-          ))}
+          {disciplines.map(([disc, count]) => {
+            const isInterest = userDisciplines.includes(disc);
+            const isSelected = selectedDisc === disc;
+            return (
+              <button
+                key={disc}
+                onClick={() => setSelectedDisc(disc === selectedDisc ? null : disc)}
+                className={[
+                  "px-2.5 py-1 rounded-full text-xs font-medium transition-colors",
+                  isSelected
+                    ? isInterest
+                      ? "bg-emerald-600 text-white"
+                      : "bg-blue-600 text-white"
+                    : isInterest
+                    ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                    : "bg-slate-100 text-slate-500 hover:bg-slate-200",
+                ].join(" ")}
+              >
+                {isInterest ? "★ " : ""}{disc} ({count})
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -97,7 +111,7 @@ export default function BookListWithFilter({ books }: Props) {
       ) : (
         <div>
           {filtered.map((b, i) => (
-            <BookRow key={`${b.isbn ?? b.title}-${i}`} book={b} />
+            <BookRow key={`${b.isbn ?? b.title}-${i}`} book={b} userDisciplines={userDisciplines} />
           ))}
         </div>
       )}

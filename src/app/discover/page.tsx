@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { fetchRecentBooks, fetchUpcomingBooks } from "@/lib/ndl";
-import BookListWithFilter from "@/components/BookListWithFilter";
+import DiscoverTabs from "@/components/DiscoverTabs";
 
 export default async function DiscoverPage() {
   const publishers = await prisma.watchPublisher.findMany({
@@ -11,12 +11,25 @@ export default async function DiscoverPage() {
   });
   const publisherNames = publishers.map((p) => p.name);
 
-  const [recentBooks, upcomingBooks] = publisherNames.length > 0
-    ? await Promise.all([
-        fetchRecentBooks(publisherNames),
-        fetchUpcomingBooks(publisherNames),
-      ])
-    : [[], []];
+  const [recentBooks, upcomingBooks, disciplineRows] = await Promise.all([
+    publisherNames.length > 0
+      ? fetchRecentBooks(publisherNames)
+      : Promise.resolve([]),
+    publisherNames.length > 0
+      ? fetchUpcomingBooks(publisherNames)
+      : Promise.resolve([]),
+    prisma.book.groupBy({
+      by: ["discipline"],
+      where: { discipline: { not: null } },
+      _count: { id: true },
+      orderBy: { _count: { id: "desc" } },
+      take: 8,
+    }),
+  ]);
+
+  const userDisciplines = disciplineRows
+    .map((r) => r.discipline!)
+    .filter(Boolean);
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -45,28 +58,12 @@ export default async function DiscoverPage() {
         </div>
       )}
 
-      {/* 直近1ヶ月の新刊 */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm mb-5">
-        <div className="flex items-center gap-2 mb-0.5">
-          <h2 className="text-sm font-semibold text-slate-700">直近1ヶ月の新刊</h2>
-          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white bg-blue-500">
-            {recentBooks.length}冊
-          </span>
-        </div>
-        <p className="text-xs text-slate-400 mb-3">今月に出版された本</p>
-        <BookListWithFilter books={recentBooks} />
-      </div>
-
-      {/* 今後2ヶ月の出版予定 */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm mb-5">
-        <div className="flex items-center gap-2 mb-0.5">
-          <h2 className="text-sm font-semibold text-slate-700">今後2ヶ月の出版予定</h2>
-          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white bg-violet-500">
-            {upcomingBooks.length}冊
-          </span>
-        </div>
-        <p className="text-xs text-slate-400 mb-3">来月・再来月に出版予定の本</p>
-        <BookListWithFilter books={upcomingBooks} />
+      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+        <DiscoverTabs
+          recentBooks={recentBooks}
+          upcomingBooks={upcomingBooks}
+          userDisciplines={userDisciplines}
+        />
       </div>
     </div>
   );
