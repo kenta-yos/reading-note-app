@@ -7,13 +7,54 @@ import type { NDLBook } from "@/lib/ndl";
 import DiscoverTabs from "@/components/DiscoverTabs";
 import { toggleBookmark } from "./actions";
 
-/** "YYYY-MM-DD" の issued を持つ場合は今日以前かで判定、月のみの場合は先月以前 = recent */
-function isRecentBook(book: NDLBook, todayStr: string, currentYM: string): boolean {
-  if (/^\d{4}-\d{2}-\d{2}$/.test(book.issued)) {
-    return book.issued <= todayStr;
+const pad = (n: number) => String(n).padStart(2, "0");
+
+function buildDateStr(date: Date) {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/**
+ * 書籍を「出版1ヶ月以内」「今後1ヶ月の予定」「除外」に分類
+ * - 日付あり (YYYY-MM-DD): 正確に今日との比較。day=00 は月単位として扱う
+ * - 月のみ (YYYY-MM): 月単位で比較（前月以前 or 来月以降は除外）
+ * - 年のみ ("2026"): 日付が不確かなため両方から除外
+ */
+function classifyBook(
+  book: NDLBook,
+  todayStr: string,
+  oneMonthAgoStr: string,
+  oneMonthAgoYM: string,
+  currentYM: string,
+  oneMonthLaterStr: string,
+  oneMonthLaterYM: string
+): "recent" | "upcoming" | null {
+  const d = book.issued;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+    const day = parseInt(d.slice(8, 10), 10);
+    const ym = d.slice(0, 7);
+
+    if (day === 0) {
+      // OpenBD が "YYYYMM00" で返す → 月単位として扱う
+      if (ym >= oneMonthAgoYM && ym <= currentYM) return "recent";
+      if (ym > currentYM && ym <= oneMonthLaterYM) return "upcoming";
+      return null;
+    }
+
+    if (d <= todayStr) {
+      return d >= oneMonthAgoStr ? "recent" : null; // 1ヶ月より古い → 除外
+    } else {
+      return d <= oneMonthLaterStr ? "upcoming" : null; // 1ヶ月より先 → 除外
+    }
   }
-  // 月のみ → 今月は日付不明なので upcoming 扱い（保守的）
-  return book.issued < currentYM;
+
+  if (/^\d{4}-\d{2}$/.test(d)) {
+    if (d >= oneMonthAgoYM && d <= currentYM) return "recent";
+    if (d > currentYM && d <= oneMonthLaterYM) return "upcoming";
+    return null;
+  }
+
+  return null; // 年のみ ("2026") など → 除外
 }
 
 export default async function DiscoverPage() {
@@ -49,16 +90,25 @@ export default async function DiscoverPage() {
   }
   const allEnriched = await enrichWithPrices(allRaw);
 
-  // 今日の日付文字列（YYYY-MM-DD / YYYY-MM）
+  // 今日・1ヶ月前・1ヶ月後の日付を計算
   const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-  const currentYM = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+  const todayStr = buildDateStr(today);
+  const currentYM = todayStr.slice(0, 7);
+  const oneMonthAgo = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
+  const oneMonthAgoStr = buildDateStr(oneMonthAgo);
+  const oneMonthAgoYM = oneMonthAgoStr.slice(0, 7);
+  const oneMonthLater = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
+  const oneMonthLaterStr = buildDateStr(oneMonthLater);
+  const oneMonthLaterYM = oneMonthLaterStr.slice(0, 7);
+
+  const classify = (b: NDLBook) =>
+    classifyBook(b, todayStr, oneMonthAgoStr, oneMonthAgoYM, currentYM, oneMonthLaterStr, oneMonthLaterYM);
 
   const recentBooks = allEnriched
-    .filter((b) => isRecentBook(b, todayStr, currentYM))
+    .filter((b) => classify(b) === "recent")
     .sort((a, b) => b.issued.localeCompare(a.issued));
   const upcomingBooks = allEnriched
-    .filter((b) => !isRecentBook(b, todayStr, currentYM))
+    .filter((b) => classify(b) === "upcoming")
     .sort((a, b) => a.issued.localeCompare(b.issued));
 
   // ブックマーク済み ISBN（正規化済み）

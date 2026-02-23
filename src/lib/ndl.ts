@@ -333,6 +333,9 @@ type OpenBDEntry = {
   summary?: {
     pubdate?: string; // "YYYYMMDD"
   };
+  hanmoto?: {
+    dateshuppan?: string; // "YYYY-MM-DD"（版元ドットコム提供、最も精度が高い）
+  };
   onix?: {
     ProductSupply?: {
       SupplyDetail?: {
@@ -369,11 +372,15 @@ export async function enrichWithPrices(books: NDLBook[]): Promise<NDLBook[]> {
 
       const priceStr =
         entry.onix?.ProductSupply?.SupplyDetail?.Price?.[0]?.PriceAmount;
-      const pubdate = entry.summary?.pubdate; // "YYYYMMDD"
+      // 日付の精度: hanmoto.dateshuppan > summary.pubdate > NDL 月単位
+      const hanmotoDate = entry.hanmoto?.dateshuppan; // "YYYY-MM-DD"
+      const pubdate = entry.summary?.pubdate;          // "YYYYMMDD"
 
       const updates: Partial<NDLBook> = {};
       if (priceStr) updates.price = parseInt(priceStr, 10);
-      if (pubdate && pubdate.length === 8) {
+      if (hanmotoDate && /^\d{4}-\d{2}-\d{2}$/.test(hanmotoDate)) {
+        updates.issued = hanmotoDate;
+      } else if (pubdate && pubdate.length === 8) {
         // "20260225" → "2026-02-25"
         updates.issued = `${pubdate.slice(0, 4)}-${pubdate.slice(4, 6)}-${pubdate.slice(6, 8)}`;
       }

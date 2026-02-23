@@ -70,6 +70,26 @@ function BookmarkButton({
   );
 }
 
+/** issued を "2026年2月25日" / "2026年2月" / "2026年" の形式に変換 */
+function formatIssuedDate(issued: string): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(issued)) {
+    const y = parseInt(issued.slice(0, 4));
+    const m = parseInt(issued.slice(5, 7));
+    const d = parseInt(issued.slice(8, 10));
+    return d === 0 ? `${y}年${m}月` : `${y}年${m}月${d}日`;
+  }
+  if (/^\d{4}-\d{2}$/.test(issued)) {
+    return `${parseInt(issued.slice(0, 4))}年${parseInt(issued.slice(5, 7))}月`;
+  }
+  return `${issued.slice(0, 4)}年`;
+}
+
+/** 書籍へのリンクURL（版元ドットコム > NDL の優先順位） */
+function bookLinkUrl(book: NDLBook): string | null {
+  if (book.isbn) return `https://www.hanmoto.com/bd/isbn/${book.isbn.replace(/-/g, "")}`;
+  return book.ndlUrl;
+}
+
 function BookRow({
   book,
   userDisciplines,
@@ -87,54 +107,58 @@ function BookRow({
     if (!onToggle || pending) return;
     setPending(true);
     onToggle();
-    // pending は楽観的更新で即座に反映されるため短時間で解除
     setTimeout(() => setPending(false), 800);
   };
 
-  const titleEl = book.ndlUrl ? (
-    <a
-      href={book.ndlUrl}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-sm font-medium text-blue-700 hover:underline leading-snug"
-    >
-      {book.title}
-    </a>
-  ) : (
-    <p className="text-sm font-medium text-slate-800 leading-snug">{book.title}</p>
-  );
-
+  const url = bookLinkUrl(book);
   const disciplineMatch = book.discipline && userDisciplines.includes(book.discipline);
 
   return (
     <div className="py-3 border-b border-slate-100 last:border-0 flex gap-2 items-start">
       <div className="flex-1 min-w-0">
-        {titleEl}
-        <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 items-center">
-          {book.author && (
-            <span className="text-xs text-slate-500">{book.author}</span>
+        {/* 書名 + 出版社タグ + カテゴリタグ（インライン） */}
+        <p className="text-sm leading-snug mb-0.5">
+          {url ? (
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-blue-700 hover:underline"
+            >
+              {book.title}
+            </a>
+          ) : (
+            <span className="font-medium text-slate-800">{book.title}</span>
           )}
           {book.publisher && (
             <span
-              className={`text-[11px] font-medium border px-1.5 py-0.5 rounded ${publisherColorClass(book.publisher)}`}
+              className={`inline-block align-middle ml-1.5 text-[10px] font-medium border px-1.5 py-0.5 rounded ${publisherColorClass(book.publisher)}`}
             >
               {book.publisher}
             </span>
           )}
-          <span className="text-xs text-slate-400 font-mono">{book.issued}</span>
+          {book.discipline && (
+            <span
+              className={[
+                "inline-block align-middle ml-1 text-[10px] font-medium px-1.5 py-0.5 rounded",
+                disciplineMatch
+                  ? "bg-emerald-100 text-emerald-700"
+                  : "bg-slate-100 text-slate-400",
+              ].join(" ")}
+            >
+              {disciplineMatch ? `★ ${book.discipline}` : book.discipline}
+            </span>
+          )}
+        </p>
+        {/* 著者・日付・価格 */}
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5 items-center">
+          {book.author && (
+            <span className="text-xs text-slate-500">{book.author}</span>
+          )}
+          <span className="text-xs text-slate-400">{formatIssuedDate(book.issued)}</span>
           {book.price != null && (
             <span className="text-xs text-slate-600 font-medium">
               ¥{book.price.toLocaleString()}
-            </span>
-          )}
-          {book.discipline && disciplineMatch && (
-            <span className="text-xs bg-emerald-100 text-emerald-700 font-medium px-1.5 py-0.5 rounded">
-              ★ {book.discipline}
-            </span>
-          )}
-          {book.discipline && !disciplineMatch && (
-            <span className="text-xs bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded">
-              {book.discipline}
             </span>
           )}
         </div>
