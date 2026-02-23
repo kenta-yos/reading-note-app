@@ -305,11 +305,23 @@ export async function fetchRecentBooks(publishers: string[]): Promise<NDLBook[]>
   const fromYM = ym(addMonths(now, -1)); // 先月
   const untilYM = ym(now);               // 今月
 
-  const results = await Promise.allSettled(
+  const ndlResults = await Promise.allSettled(
     publishers.map((p) => fetchNDL(p, fromYM, untilYM, 3600))
   );
-  const books = results.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
-  return deduplicateBooks(books);
+  const ndlBooks = ndlResults.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
+
+  // NDL SRU が漏らす R100000137（版元ドットコム）書籍を補完
+  const supplementary = await Promise.all(
+    publishers.map((p, i) => {
+      const pBooks = ndlResults[i].status === "fulfilled" ? ndlResults[i].value : [];
+      const pIsbns = pBooks
+        .map((b) => b.isbn?.replace(/-/g, ""))
+        .filter((isbn): isbn is string => Boolean(isbn));
+      return fetchSupplementaryByIsbnGap(p, pIsbns, fromYM, untilYM);
+    })
+  );
+
+  return deduplicateBooks([...ndlBooks, ...supplementary.flat()]);
 }
 
 /**
@@ -321,16 +333,32 @@ export async function fetchUpcomingBooks(publishers: string[]): Promise<NDLBook[
   const fromYM = ym(now);               // 今月（今日以降のものを含む）
   const untilYM = ym(addMonths(now, 1)); // 来月
 
-  const results = await Promise.allSettled(
+  const ndlResults = await Promise.allSettled(
     publishers.map((p) => fetchNDL(p, fromYM, untilYM, 3600))
   );
-  const books = results.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
-  return deduplicateBooks(books);
+  const ndlBooks = ndlResults.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
+
+  // NDL SRU が漏らす R100000137（版元ドットコム）書籍を補完
+  const supplementary = await Promise.all(
+    publishers.map((p, i) => {
+      const pBooks = ndlResults[i].status === "fulfilled" ? ndlResults[i].value : [];
+      const pIsbns = pBooks
+        .map((b) => b.isbn?.replace(/-/g, ""))
+        .filter((isbn): isbn is string => Boolean(isbn));
+      return fetchSupplementaryByIsbnGap(p, pIsbns, fromYM, untilYM);
+    })
+  );
+
+  return deduplicateBooks([...ndlBooks, ...supplementary.flat()]);
 }
 
 // ── OpenBD 価格・日付取得 ──────────────────────────────────────
 type OpenBDEntry = {
   summary?: {
+    isbn?: string;
+    title?: string;
+    author?: string;
+    publisher?: string;
     pubdate?: string; // "YYYYMMDD"
   };
   hanmoto?: {
@@ -344,6 +372,133 @@ type OpenBDEntry = {
     };
   };
 } | null;
+
+// ── OpenBD ISBNギャップスキャン（NDL SRU が漏らす R100000137 書籍の補完） ────
+// NDL SRU の publisher= クエリは dcterms:publisher しか検索しないため、
+// 版元ドットコム (R100000137) 登録書籍（dcndl:digitizedPublisher を使用）を取得できない。
+// NDL で見つかったISBNの間のギャップをOpenBDでスキャンして漏れを補完する。
+
+const OPENBD_BATCH_SIZE = 500; // URL長制限を考慮
+const MAX_ISBN_GAP = 20000;    // これ以上のギャップはスキップ（異なるシリーズと見なす）
+
+/**
+ * OpenBD からエントリーをバッチ取得（ハイフンなしISBNリスト）
+ */
+async function fetchOpenBDBatch(isbns: string[]): Promise<OpenBDEntry[]> {
+  if (isbns.length === 0) return [];
+  try {
+    const res = await fetch(
+      `https://api.openbd.jp/v1/get?isbn=${isbns.join(",")}`,
+      { next: { revalidate: 3600 } }
+    );
+    if (!res.ok) return [];
+    return res.json();
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * NDL SRU が漏らした書籍を OpenBD ISBNギャップスキャンで補完する
+ * - NDL で見つかったISBN間のギャップ（MAX_ISBN_GAP 以内）を並列スキャン
+ * - 各エンドポイントの ±500 範囲も追加スキャン
+ */
+async function fetchSupplementaryByIsbnGap(
+  publisher: string,
+  ndlIsbns: string[], // ハイフンなしISBN（NDL SRU結果から）
+  fromYM: string,     // "YYYY-MM"
+  untilYM: string     // "YYYY-MM"
+): Promise<NDLBook[]> {
+  if (ndlIsbns.length === 0) return [];
+
+  const sorted = [...new Set(ndlIsbns)]
+    .map((s) => parseInt(s))
+    .filter((n) => n > 9780000000000 && n < 9800000000000) // 有効な978/979 ISBN
+    .sort((a, b) => a - b);
+
+  if (sorted.length === 0) return [];
+
+  // スキャン対象の [lo, hi] ペアを収集
+  const ranges: Array<[number, number]> = [];
+
+  // 各ISBN周辺 ±500 をスキャン（端のISBNをカバー）
+  ranges.push([sorted[0] - 500, sorted[0] - 1]);
+  ranges.push([sorted[sorted.length - 1] + 1, sorted[sorted.length - 1] + 500]);
+
+  // 隣接ISBNのギャップをスキャン
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const gap = sorted[i + 1] - sorted[i];
+    if (gap > 1 && gap <= MAX_ISBN_GAP) {
+      ranges.push([sorted[i] + 1, sorted[i + 1] - 1]);
+    }
+  }
+
+  // 有効なISBNの範囲内に制限し、全ISBNを生成
+  const scanIsbns: string[] = [];
+  for (const [lo, hi] of ranges) {
+    const validLo = Math.max(lo, 9780000000000);
+    const validHi = Math.min(hi, 9799999999999);
+    if (validLo > validHi) continue;
+    for (let n = validLo; n <= validHi; n++) {
+      scanIsbns.push(String(n));
+    }
+  }
+
+  if (scanIsbns.length === 0) return [];
+
+  // バッチに分割して並列実行
+  const batches: string[][] = [];
+  for (let i = 0; i < scanIsbns.length; i += OPENBD_BATCH_SIZE) {
+    batches.push(scanIsbns.slice(i, i + OPENBD_BATCH_SIZE));
+  }
+
+  const allEntries = (
+    await Promise.all(batches.map((b) => fetchOpenBDBatch(b)))
+  ).flat();
+
+  // フィルタリングして NDLBook に変換
+  const results: NDLBook[] = [];
+  for (const entry of allEntries) {
+    if (!entry?.summary) continue;
+    if (entry.summary.publisher !== publisher) continue;
+
+    const isbn = entry.summary.isbn;
+    if (!isbn) continue;
+
+    // 日付: hanmoto.dateshuppan > summary.pubdate
+    const hanmotoDate = entry.hanmoto?.dateshuppan;
+    const pubdate = entry.summary.pubdate;
+    let issued: string;
+    if (hanmotoDate && /^\d{4}-\d{2}-\d{2}$/.test(hanmotoDate)) {
+      issued = hanmotoDate;
+    } else if (pubdate && pubdate.length === 8) {
+      issued = `${pubdate.slice(0, 4)}-${pubdate.slice(4, 6)}-${pubdate.slice(6, 8)}`;
+    } else {
+      continue; // 日付不明はスキップ
+    }
+
+    // 日付範囲フィルタ
+    const issuedYM = issued.slice(0, 7);
+    if (issuedYM < fromYM || issuedYM > untilYM) continue;
+
+    const priceStr = entry.onix?.ProductSupply?.SupplyDetail?.Price?.[0]?.PriceAmount;
+
+    results.push({
+      title: entry.summary.title ?? "",
+      author: entry.summary.author ?? "",
+      publisher: entry.summary.publisher,
+      issued,
+      isbn,
+      ndcCode: null,
+      discipline: null,
+      // NDL書誌ページURL（R100000137形式）
+      ndlUrl: `https://ndlsearch.ndl.go.jp/books/R100000137-I${isbn}`,
+      price: priceStr ? parseInt(priceStr, 10) : null,
+    });
+  }
+
+  return results;
+}
 
 /**
  * ISBNリストを使って OpenBD から税込定価・出版日を取得し books を補完して返す
