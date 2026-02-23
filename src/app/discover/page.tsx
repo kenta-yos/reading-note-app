@@ -2,8 +2,10 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { fetchRecentBooks, fetchUpcomingBooks } from "@/lib/ndl";
+import { fetchRecentBooks, fetchUpcomingBooks, enrichWithPrices } from "@/lib/ndl";
+import type { NDLBook } from "@/lib/ndl";
 import DiscoverTabs from "@/components/DiscoverTabs";
+import { toggleBookmark } from "./actions";
 
 export default async function DiscoverPage() {
   const publishers = await prisma.watchPublisher.findMany({
@@ -11,21 +13,53 @@ export default async function DiscoverPage() {
   });
   const publisherNames = publishers.map((p) => p.name);
 
-  const [recentBooks, upcomingBooks, disciplineRows] = await Promise.all([
-    publisherNames.length > 0
-      ? fetchRecentBooks(publisherNames)
-      : Promise.resolve([]),
-    publisherNames.length > 0
-      ? fetchUpcomingBooks(publisherNames)
-      : Promise.resolve([]),
-    prisma.book.groupBy({
-      by: ["discipline"],
-      where: { discipline: { not: null } },
-      _count: { id: true },
-      orderBy: { _count: { id: "desc" } },
-      take: 8,
-    }),
-  ]);
+  const [recentBooksRaw, upcomingBooksRaw, bookmarks, disciplineRows] =
+    await Promise.all([
+      publisherNames.length > 0
+        ? fetchRecentBooks(publisherNames)
+        : Promise.resolve([]),
+      publisherNames.length > 0
+        ? fetchUpcomingBooks(publisherNames)
+        : Promise.resolve([]),
+      prisma.discoverBookmark.findMany({ orderBy: { createdAt: "desc" } }),
+      prisma.book.groupBy({
+        by: ["discipline"],
+        where: { discipline: { not: null } },
+        _count: { id: true },
+        orderBy: { _count: { id: "desc" } },
+        take: 8,
+      }),
+    ]);
+
+  // 全書籍まとめて OpenBD で価格補完（1回のAPIコール）
+  const allRaw = [...recentBooksRaw, ...upcomingBooksRaw];
+  const allEnriched = await enrichWithPrices(allRaw);
+  const recentBooks = allEnriched.slice(0, recentBooksRaw.length);
+  const upcomingBooks = allEnriched.slice(recentBooksRaw.length);
+
+  // ブックマーク済み ISBN セット（正規化済み）
+  const bookmarkedIsbns = bookmarks.map((b) => b.isbn);
+
+  // 現在のNDL結果から価格マップを構築（ブックマークタブでも使用）
+  const priceByIsbn: Record<string, number> = {};
+  for (const b of allEnriched) {
+    if (b.isbn && b.price != null) {
+      priceByIsbn[b.isbn.replace(/-/g, "")] = b.price;
+    }
+  }
+
+  // ブックマークを NDLBook 形式に変換（価格は現在リストから補完）
+  const bookmarkedBooks: NDLBook[] = bookmarks.map((b) => ({
+    title: b.title,
+    author: b.author ?? "",
+    publisher: b.publisher ?? "",
+    issued: b.issued,
+    isbn: b.isbn,
+    ndcCode: b.ndcCode,
+    discipline: b.discipline,
+    ndlUrl: b.ndlUrl,
+    price: priceByIsbn[b.isbn] ?? null,
+  }));
 
   const userDisciplines = disciplineRows
     .map((r) => r.discipline!)
@@ -33,7 +67,6 @@ export default async function DiscoverPage() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      {/* ヘッダー */}
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold text-slate-800">新刊を探す</h1>
@@ -62,7 +95,10 @@ export default async function DiscoverPage() {
         <DiscoverTabs
           recentBooks={recentBooks}
           upcomingBooks={upcomingBooks}
+          bookmarkedBooks={bookmarkedBooks}
+          bookmarkedIsbns={bookmarkedIsbns}
           userDisciplines={userDisciplines}
+          toggleBookmark={toggleBookmark}
         />
       </div>
     </div>

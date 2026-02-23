@@ -1,69 +1,122 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useOptimistic, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import type { NDLBook } from "@/lib/ndl";
 import BookListWithFilter from "./BookListWithFilter";
+
+type Tab = "recent" | "upcoming" | "bookmark";
 
 type Props = {
   recentBooks: NDLBook[];
   upcomingBooks: NDLBook[];
+  bookmarkedBooks: NDLBook[];
+  bookmarkedIsbns: string[];
   userDisciplines: string[];
+  toggleBookmark: (book: NDLBook) => Promise<void>;
 };
 
-export default function DiscoverTabs({ recentBooks, upcomingBooks, userDisciplines }: Props) {
-  const [tab, setTab] = useState<"recent" | "upcoming">("recent");
+export default function DiscoverTabs({
+  recentBooks,
+  upcomingBooks,
+  bookmarkedBooks,
+  bookmarkedIsbns,
+  userDisciplines,
+  toggleBookmark,
+}: Props) {
+  const router = useRouter();
+  const [tab, setTab] = useState<Tab>("recent");
+  const [, startTransition] = useTransition();
+
+  const [optimisticBookmarked, applyToggle] = useOptimistic(
+    new Set(bookmarkedIsbns),
+    (current: Set<string>, isbn: string) => {
+      const next = new Set(current);
+      if (next.has(isbn)) next.delete(isbn);
+      else next.add(isbn);
+      return next;
+    }
+  );
+
+  const handleToggle = (book: NDLBook) => {
+    if (!book.isbn) return;
+    const cleanIsbn = book.isbn.replace(/-/g, "");
+    startTransition(async () => {
+      applyToggle(cleanIsbn);
+      await toggleBookmark(book);
+      router.refresh();
+    });
+  };
+
+  const tabs: {
+    key: Tab;
+    label: string;
+    count: number;
+    activeClass: string;
+    badgeActive: string;
+  }[] = [
+    {
+      key: "recent",
+      label: "今月の新刊",
+      count: recentBooks.length,
+      activeClass: "border-blue-500 text-blue-600",
+      badgeActive: "bg-blue-500 text-white",
+    },
+    {
+      key: "upcoming",
+      label: "今後2ヶ月",
+      count: upcomingBooks.length,
+      activeClass: "border-violet-500 text-violet-600",
+      badgeActive: "bg-violet-500 text-white",
+    },
+    {
+      key: "bookmark",
+      label: "ブックマーク",
+      count: optimisticBookmarked.size,
+      activeClass: "border-amber-500 text-amber-600",
+      badgeActive: "bg-amber-500 text-white",
+    },
+  ];
+
+  const currentBooks =
+    tab === "recent"
+      ? recentBooks
+      : tab === "upcoming"
+      ? upcomingBooks
+      : bookmarkedBooks;
 
   return (
     <div>
-      {/* タブ */}
       <div className="flex gap-0 mb-4 border-b border-slate-200">
-        <button
-          onClick={() => setTab("recent")}
-          className={[
-            "pb-2.5 px-3 text-sm font-medium border-b-2 transition-colors -mb-px",
-            tab === "recent"
-              ? "border-blue-500 text-blue-600"
-              : "border-transparent text-slate-400 hover:text-slate-600",
-          ].join(" ")}
-        >
-          今月の新刊
-          <span
+        {tabs.map(({ key, label, count, activeClass, badgeActive }) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
             className={[
-              "ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full",
-              tab === "recent"
-                ? "bg-blue-500 text-white"
-                : "bg-slate-200 text-slate-500",
+              "pb-2.5 px-3 text-sm font-medium border-b-2 transition-colors -mb-px",
+              tab === key
+                ? activeClass
+                : "border-transparent text-slate-400 hover:text-slate-600",
             ].join(" ")}
           >
-            {recentBooks.length}
-          </span>
-        </button>
-        <button
-          onClick={() => setTab("upcoming")}
-          className={[
-            "pb-2.5 px-3 text-sm font-medium border-b-2 transition-colors -mb-px",
-            tab === "upcoming"
-              ? "border-violet-500 text-violet-600"
-              : "border-transparent text-slate-400 hover:text-slate-600",
-          ].join(" ")}
-        >
-          今後2ヶ月の予定
-          <span
-            className={[
-              "ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full",
-              tab === "upcoming"
-                ? "bg-violet-500 text-white"
-                : "bg-slate-200 text-slate-500",
-            ].join(" ")}
-          >
-            {upcomingBooks.length}
-          </span>
-        </button>
+            {label}
+            <span
+              className={[
+                "ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full",
+                tab === key ? badgeActive : "bg-slate-200 text-slate-500",
+              ].join(" ")}
+            >
+              {count}
+            </span>
+          </button>
+        ))}
       </div>
 
       <BookListWithFilter
-        books={tab === "recent" ? recentBooks : upcomingBooks}
+        books={currentBooks}
         userDisciplines={userDisciplines}
+        bookmarked={optimisticBookmarked}
+        onToggleBookmark={handleToggle}
       />
     </div>
   );

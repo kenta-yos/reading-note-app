@@ -6,9 +6,71 @@ import type { NDLBook } from "@/lib/ndl";
 type Props = {
   books: NDLBook[];
   userDisciplines?: string[];
+  bookmarked?: Set<string>;
+  onToggleBookmark?: (book: NDLBook) => void;
 };
 
-function BookRow({ book, userDisciplines = [] }: { book: NDLBook; userDisciplines: string[] }) {
+function BookmarkButton({
+  isBookmarked,
+  disabled,
+  onClick,
+}: {
+  isBookmarked: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={isBookmarked ? "ブックマーク解除" : "ブックマーク"}
+      className={[
+        "ml-auto flex-shrink-0 p-1 rounded transition-colors",
+        isBookmarked
+          ? "text-amber-500 hover:text-amber-400"
+          : "text-slate-300 hover:text-amber-400",
+        disabled ? "opacity-50 cursor-not-allowed" : "",
+      ].join(" ")}
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill={isBookmarked ? "currentColor" : "none"}
+        stroke="currentColor"
+        strokeWidth={2}
+        className="w-4 h-4"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z"
+        />
+      </svg>
+    </button>
+  );
+}
+
+function BookRow({
+  book,
+  userDisciplines,
+  isBookmarked,
+  onToggle,
+}: {
+  book: NDLBook;
+  userDisciplines: string[];
+  isBookmarked: boolean;
+  onToggle: (() => void) | null;
+}) {
+  const [pending, setPending] = useState(false);
+
+  const handleClick = () => {
+    if (!onToggle || pending) return;
+    setPending(true);
+    onToggle();
+    // pending は楽観的更新で即座に反映されるため短時間で解除
+    setTimeout(() => setPending(false), 800);
+  };
+
   const titleEl = book.ndlUrl ? (
     <a
       href={book.ndlUrl}
@@ -22,31 +84,52 @@ function BookRow({ book, userDisciplines = [] }: { book: NDLBook; userDiscipline
     <p className="text-sm font-medium text-slate-800 leading-snug">{book.title}</p>
   );
 
+  const disciplineMatch = book.discipline && userDisciplines.includes(book.discipline);
+
   return (
-    <div className="py-3 border-b border-slate-100 last:border-0">
-      {titleEl}
-      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
-        {book.author && (
-          <span className="text-xs text-slate-500">{book.author}</span>
-        )}
-        <span className="text-xs text-slate-400">{book.publisher}</span>
-        <span className="text-xs text-slate-400 font-mono">{book.issued}</span>
-        {book.discipline && userDisciplines.includes(book.discipline) && (
-          <span className="text-xs bg-emerald-100 text-emerald-700 font-medium px-1.5 py-0.5 rounded">
-            ★ {book.discipline}
-          </span>
-        )}
-        {book.discipline && !userDisciplines.includes(book.discipline) && (
-          <span className="text-xs bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded">
-            {book.discipline}
-          </span>
-        )}
+    <div className="py-3 border-b border-slate-100 last:border-0 flex gap-2 items-start">
+      <div className="flex-1 min-w-0">
+        {titleEl}
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 items-center">
+          {book.author && (
+            <span className="text-xs text-slate-500">{book.author}</span>
+          )}
+          <span className="text-xs text-slate-400">{book.publisher}</span>
+          <span className="text-xs text-slate-400 font-mono">{book.issued}</span>
+          {book.price != null && (
+            <span className="text-xs text-slate-600 font-medium">
+              ¥{book.price.toLocaleString()}
+            </span>
+          )}
+          {book.discipline && disciplineMatch && (
+            <span className="text-xs bg-emerald-100 text-emerald-700 font-medium px-1.5 py-0.5 rounded">
+              ★ {book.discipline}
+            </span>
+          )}
+          {book.discipline && !disciplineMatch && (
+            <span className="text-xs bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded">
+              {book.discipline}
+            </span>
+          )}
+        </div>
       </div>
+      {onToggle && book.isbn && (
+        <BookmarkButton
+          isBookmarked={isBookmarked}
+          disabled={pending}
+          onClick={handleClick}
+        />
+      )}
     </div>
   );
 }
 
-export default function BookListWithFilter({ books, userDisciplines = [] }: Props) {
+export default function BookListWithFilter({
+  books,
+  userDisciplines = [],
+  bookmarked = new Set(),
+  onToggleBookmark,
+}: Props) {
   const [selectedDisc, setSelectedDisc] = useState<string | null>(null);
 
   // 分野タグを件数付きで収集
@@ -96,7 +179,8 @@ export default function BookListWithFilter({ books, userDisciplines = [] }: Prop
                     : "bg-slate-100 text-slate-500 hover:bg-slate-200",
                 ].join(" ")}
               >
-                {isInterest ? "★ " : ""}{disc} ({count})
+                {isInterest ? "★ " : ""}
+                {disc} ({count})
               </button>
             );
           })}
@@ -110,9 +194,18 @@ export default function BookListWithFilter({ books, userDisciplines = [] }: Prop
         </p>
       ) : (
         <div>
-          {filtered.map((b, i) => (
-            <BookRow key={`${b.isbn ?? b.title}-${i}`} book={b} userDisciplines={userDisciplines} />
-          ))}
+          {filtered.map((b, i) => {
+            const cleanIsbn = b.isbn?.replace(/-/g, "") ?? null;
+            return (
+              <BookRow
+                key={`${b.isbn ?? b.title}-${i}`}
+                book={b}
+                userDisciplines={userDisciplines}
+                isBookmarked={cleanIsbn ? bookmarked.has(cleanIsbn) : false}
+                onToggle={onToggleBookmark ? () => onToggleBookmark(b) : null}
+              />
+            );
+          })}
         </div>
       )}
     </div>

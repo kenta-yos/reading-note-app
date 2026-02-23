@@ -52,3 +52,16 @@ model WatchPublisher {
   name      String   @unique
   createdAt DateTime @default(now())
 }
+
+model DiscoverBookmark {
+  id         String   @id @default(cuid())
+  isbn       String   @unique
+  title      String
+  author     String?
+  publisher  String?
+  issued     String
+  ndcCode    String?
+  discipline String?
+  ndlUrl     String?
+  createdAt  DateTime @default(now())
+}

@@ -15,6 +15,7 @@ export type NDLBook = {
   ndcCode: string | null;
   discipline: string | null;
   ndlUrl: string | null; // 国立国会図書館の書誌ページURL
+  price: number | null;  // 税込定価（円）OpenBD より
 };
 
 // ── NDC → 学問分野マッピング ────────────────────────────────
@@ -229,6 +230,7 @@ function parseRecord(rawRecordData: string, fallbackPublisher: string): NDLBook 
     ndcCode: ndcRaw,
     discipline: ndcToDiscipline(ndcRaw),
     ndlUrl,
+    price: null, // OpenBD で後から補完
   };
 }
 
@@ -324,4 +326,53 @@ export async function fetchUpcomingBooks(publishers: string[]): Promise<NDLBook[
   );
   const books = results.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
   return deduplicateBooks(books).sort((a, b) => a.issued.localeCompare(b.issued));
+}
+
+// ── OpenBD 価格取得 ────────────────────────────────────────────
+type OpenBDEntry = {
+  onix?: {
+    ProductSupply?: {
+      SupplyDetail?: {
+        Price?: { PriceAmount?: string }[];
+      };
+    };
+  };
+} | null;
+
+/**
+ * ISBNリストを使って OpenBD から税込定価を取得し、books に price を補完して返す
+ */
+export async function enrichWithPrices(books: NDLBook[]): Promise<NDLBook[]> {
+  // ISBN あり & ハイフン除去してインデックスを保持
+  const targets: { cleanIsbn: string; idx: number }[] = [];
+  books.forEach((b, idx) => {
+    if (b.isbn) targets.push({ cleanIsbn: b.isbn.replace(/-/g, ""), idx });
+  });
+  if (targets.length === 0) return books;
+
+  try {
+    const res = await fetch(
+      `https://api.openbd.jp/v1/get?isbn=${targets.map((t) => t.cleanIsbn).join(",")}`,
+      { next: { revalidate: 3600 } }
+    );
+    if (!res.ok) return books;
+    const data: OpenBDEntry[] = await res.json();
+
+    const enriched = [...books];
+    for (let i = 0; i < targets.length; i++) {
+      const entry = data[i];
+      if (!entry) continue;
+      const priceStr =
+        entry.onix?.ProductSupply?.SupplyDetail?.Price?.[0]?.PriceAmount;
+      if (priceStr) {
+        enriched[targets[i].idx] = {
+          ...enriched[targets[i].idx],
+          price: parseInt(priceStr, 10),
+        };
+      }
+    }
+    return enriched;
+  } catch {
+    return books;
+  }
 }
