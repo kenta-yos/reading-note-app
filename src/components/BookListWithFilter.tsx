@@ -3,6 +3,26 @@
 import { useState } from "react";
 import type { NDLBook } from "@/lib/ndl";
 
+// 出版社名ハッシュ → 色クラス（完全な文字列で列挙して Tailwind の purge を回避）
+const PUBLISHER_COLORS = [
+  "bg-blue-50 text-blue-700 border-blue-200",
+  "bg-emerald-50 text-emerald-700 border-emerald-200",
+  "bg-violet-50 text-violet-700 border-violet-200",
+  "bg-orange-50 text-orange-700 border-orange-200",
+  "bg-rose-50 text-rose-700 border-rose-200",
+  "bg-teal-50 text-teal-700 border-teal-200",
+  "bg-amber-50 text-amber-700 border-amber-200",
+  "bg-sky-50 text-sky-700 border-sky-200",
+  "bg-indigo-50 text-indigo-700 border-indigo-200",
+  "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200",
+];
+
+function publisherColorClass(name: string): string {
+  let hash = 0;
+  for (const c of name) hash = (hash * 31 + c.charCodeAt(0)) & 0xffff;
+  return PUBLISHER_COLORS[hash % PUBLISHER_COLORS.length];
+}
+
 type Props = {
   books: NDLBook[];
   userDisciplines?: string[];
@@ -94,9 +114,13 @@ function BookRow({
           {book.author && (
             <span className="text-xs text-slate-500">{book.author}</span>
           )}
-          <span className="text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200 px-1.5 py-0.5 rounded">
-            {book.publisher}
-          </span>
+          {book.publisher && (
+            <span
+              className={`text-[11px] font-medium border px-1.5 py-0.5 rounded ${publisherColorClass(book.publisher)}`}
+            >
+              {book.publisher}
+            </span>
+          )}
           <span className="text-xs text-slate-400 font-mono">{book.issued}</span>
           {book.price != null && (
             <span className="text-xs text-slate-600 font-medium">
