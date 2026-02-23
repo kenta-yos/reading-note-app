@@ -57,14 +57,14 @@ export default function DiscoverTabs({
   }[] = [
     {
       key: "recent",
-      label: "今月の新刊",
+      label: "出版1ヶ月以内",
       count: recentBooks.length,
       activeClass: "border-blue-500 text-blue-600",
       badgeActive: "bg-blue-500 text-white",
     },
     {
       key: "upcoming",
-      label: "今後2ヶ月",
+      label: "今後1ヶ月の予定",
       count: upcomingBooks.length,
       activeClass: "border-violet-500 text-violet-600",
       badgeActive: "bg-violet-500 text-white",

@@ -94,7 +94,9 @@ function BookRow({
           {book.author && (
             <span className="text-xs text-slate-500">{book.author}</span>
           )}
-          <span className="text-xs text-slate-400">{book.publisher}</span>
+          <span className="text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200 px-1.5 py-0.5 rounded">
+            {book.publisher}
+          </span>
           <span className="text-xs text-slate-400 font-mono">{book.issued}</span>
           {book.price != null && (
             <span className="text-xs text-slate-600 font-medium">

@@ -7,48 +7,68 @@ import type { NDLBook } from "@/lib/ndl";
 import DiscoverTabs from "@/components/DiscoverTabs";
 import { toggleBookmark } from "./actions";
 
+/** "YYYY-MM-DD" の issued を持つ場合は今日以前かで判定、月のみの場合は先月以前 = recent */
+function isRecentBook(book: NDLBook, todayStr: string, currentYM: string): boolean {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(book.issued)) {
+    return book.issued <= todayStr;
+  }
+  // 月のみ → 今月は日付不明なので upcoming 扱い（保守的）
+  return book.issued < currentYM;
+}
+
 export default async function DiscoverPage() {
   const publishers = await prisma.watchPublisher.findMany({
     orderBy: { name: "asc" },
   });
   const publisherNames = publishers.map((p) => p.name);
 
-  const [recentBooksRaw, upcomingBooksRaw, bookmarks, disciplineRows] =
-    await Promise.all([
-      publisherNames.length > 0
-        ? fetchRecentBooks(publisherNames)
-        : Promise.resolve([]),
-      publisherNames.length > 0
-        ? fetchUpcomingBooks(publisherNames)
-        : Promise.resolve([]),
-      prisma.discoverBookmark.findMany({ orderBy: { createdAt: "desc" } }),
-      prisma.book.groupBy({
-        by: ["discipline"],
-        where: { discipline: { not: null } },
-        _count: { id: true },
-        orderBy: { _count: { id: "desc" } },
-        take: 8,
-      }),
-    ]);
+  const [recentRaw, upcomingRaw, bookmarks, disciplineRows] = await Promise.all([
+    publisherNames.length > 0
+      ? fetchRecentBooks(publisherNames)
+      : Promise.resolve([]),
+    publisherNames.length > 0
+      ? fetchUpcomingBooks(publisherNames)
+      : Promise.resolve([]),
+    prisma.discoverBookmark.findMany({ orderBy: { createdAt: "desc" } }),
+    prisma.book.groupBy({
+      by: ["discipline"],
+      where: { discipline: { not: null } },
+      _count: { id: true },
+      orderBy: { _count: { id: "desc" } },
+      take: 8,
+    }),
+  ]);
 
-  // 全書籍まとめて OpenBD で価格補完（1回のAPIコール）
-  const allRaw = [...recentBooksRaw, ...upcomingBooksRaw];
+  // 重複排除してから一括 OpenBD エンリッチ（1回のAPIコール）
+  // recent と upcoming は今月分が重複するため先に dedup
+  const seen = new Set<string>();
+  const allRaw: NDLBook[] = [];
+  for (const b of [...recentRaw, ...upcomingRaw]) {
+    const key = b.isbn ?? b.title;
+    if (!seen.has(key)) { seen.add(key); allRaw.push(b); }
+  }
   const allEnriched = await enrichWithPrices(allRaw);
-  const recentBooks = allEnriched.slice(0, recentBooksRaw.length);
-  const upcomingBooks = allEnriched.slice(recentBooksRaw.length);
 
-  // ブックマーク済み ISBN セット（正規化済み）
+  // 今日の日付文字列（YYYY-MM-DD / YYYY-MM）
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const currentYM = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+
+  const recentBooks = allEnriched
+    .filter((b) => isRecentBook(b, todayStr, currentYM))
+    .sort((a, b) => b.issued.localeCompare(a.issued));
+  const upcomingBooks = allEnriched
+    .filter((b) => !isRecentBook(b, todayStr, currentYM))
+    .sort((a, b) => a.issued.localeCompare(b.issued));
+
+  // ブックマーク済み ISBN（正規化済み）
   const bookmarkedIsbns = bookmarks.map((b) => b.isbn);
 
-  // 現在のNDL結果から価格マップを構築（ブックマークタブでも使用）
+  // ブックマークタブ用：現在の価格を補完
   const priceByIsbn: Record<string, number> = {};
   for (const b of allEnriched) {
-    if (b.isbn && b.price != null) {
-      priceByIsbn[b.isbn.replace(/-/g, "")] = b.price;
-    }
+    if (b.isbn && b.price != null) priceByIsbn[b.isbn.replace(/-/g, "")] = b.price;
   }
-
-  // ブックマークを NDLBook 形式に変換（価格は現在リストから補完）
   const bookmarkedBooks: NDLBook[] = bookmarks.map((b) => ({
     title: b.title,
     author: b.author ?? "",
@@ -61,9 +81,7 @@ export default async function DiscoverPage() {
     price: priceByIsbn[b.isbn] ?? null,
   }));
 
-  const userDisciplines = disciplineRows
-    .map((r) => r.discipline!)
-    .filter(Boolean);
+  const userDisciplines = disciplineRows.map((r) => r.discipline!).filter(Boolean);
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -71,7 +89,7 @@ export default async function DiscoverPage() {
         <div>
           <h1 className="text-xl font-bold text-slate-800">新刊を探す</h1>
           <p className="text-slate-500 text-sm mt-0.5">
-            {publisherNames.length}出版社の今月・今後の新刊
+            {publisherNames.length}出版社の最新刊・近刊
           </p>
         </div>
         <Link

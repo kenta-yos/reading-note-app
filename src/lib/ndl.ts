@@ -237,8 +237,8 @@ function parseRecord(rawRecordData: string, fallbackPublisher: string): NDLBook 
 // ── SRU API 呼び出し ──────────────────────────────────────────
 const NDL_SRU = "https://ndlsearch.ndl.go.jp/api/sru";
 
-// 出版社ごとの取得上限（全体を絞るために少なめに）
-const MAX_RECORDS_PER_PUBLISHER = 10;
+// 出版社ごとの取得上限（学術出版社は月数十冊程度なので 100 で実質全件）
+const MAX_RECORDS_PER_PUBLISHER = 100;
 
 async function fetchNDL(
   publisher: string,
@@ -297,39 +297,42 @@ function deduplicateBooks(books: NDLBook[]): NDLBook[] {
 }
 
 /**
- * 直近2ヶ月（先月・今月）の新刊
- * ※ 重複排除済み
+ * 直近1ヶ月分（先月〜今月）の書籍を取得
+ * ページ側で OpenBD 日付を使って "今日以前" にフィルタする
  */
 export async function fetchRecentBooks(publishers: string[]): Promise<NDLBook[]> {
   const now = new Date();
-  const fromYM = ym(now); // 今月のみ
-  const untilYM = ym(now);
+  const fromYM = ym(addMonths(now, -1)); // 先月
+  const untilYM = ym(now);               // 今月
 
   const results = await Promise.allSettled(
     publishers.map((p) => fetchNDL(p, fromYM, untilYM, 3600))
   );
   const books = results.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
-  return deduplicateBooks(books).sort((a, b) => b.issued.localeCompare(a.issued));
+  return deduplicateBooks(books);
 }
 
 /**
- * 今後2ヶ月（来月・再来月）の出版予定
- * ※ 今月は直近と重複するため除外。重複排除済み。
+ * 今後1ヶ月分（今月〜来月）の書籍を取得
+ * ページ側で OpenBD 日付を使って "今日より後" にフィルタする
  */
 export async function fetchUpcomingBooks(publishers: string[]): Promise<NDLBook[]> {
   const now = new Date();
-  const fromYM = ym(addMonths(now, 1)); // 来月（今月は直近側）
-  const untilYM = ym(addMonths(now, 2)); // 再来月
+  const fromYM = ym(now);               // 今月（今日以降のものを含む）
+  const untilYM = ym(addMonths(now, 1)); // 来月
 
   const results = await Promise.allSettled(
     publishers.map((p) => fetchNDL(p, fromYM, untilYM, 3600))
   );
   const books = results.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
-  return deduplicateBooks(books).sort((a, b) => a.issued.localeCompare(b.issued));
+  return deduplicateBooks(books);
 }
 
-// ── OpenBD 価格取得 ────────────────────────────────────────────
+// ── OpenBD 価格・日付取得 ──────────────────────────────────────
 type OpenBDEntry = {
+  summary?: {
+    pubdate?: string; // "YYYYMMDD"
+  };
   onix?: {
     ProductSupply?: {
       SupplyDetail?: {
@@ -340,10 +343,11 @@ type OpenBDEntry = {
 } | null;
 
 /**
- * ISBNリストを使って OpenBD から税込定価を取得し、books に price を補完して返す
+ * ISBNリストを使って OpenBD から税込定価・出版日を取得し books を補完して返す
+ * - price: 税込定価（円）
+ * - issued: OpenBD に正確な日付があれば "YYYY-MM-DD" に更新（NDL は月まで）
  */
 export async function enrichWithPrices(books: NDLBook[]): Promise<NDLBook[]> {
-  // ISBN あり & ハイフン除去してインデックスを保持
   const targets: { cleanIsbn: string; idx: number }[] = [];
   books.forEach((b, idx) => {
     if (b.isbn) targets.push({ cleanIsbn: b.isbn.replace(/-/g, ""), idx });
@@ -362,13 +366,20 @@ export async function enrichWithPrices(books: NDLBook[]): Promise<NDLBook[]> {
     for (let i = 0; i < targets.length; i++) {
       const entry = data[i];
       if (!entry) continue;
+
       const priceStr =
         entry.onix?.ProductSupply?.SupplyDetail?.Price?.[0]?.PriceAmount;
-      if (priceStr) {
-        enriched[targets[i].idx] = {
-          ...enriched[targets[i].idx],
-          price: parseInt(priceStr, 10),
-        };
+      const pubdate = entry.summary?.pubdate; // "YYYYMMDD"
+
+      const updates: Partial<NDLBook> = {};
+      if (priceStr) updates.price = parseInt(priceStr, 10);
+      if (pubdate && pubdate.length === 8) {
+        // "20260225" → "2026-02-25"
+        updates.issued = `${pubdate.slice(0, 4)}-${pubdate.slice(4, 6)}-${pubdate.slice(6, 8)}`;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        enriched[targets[i].idx] = { ...enriched[targets[i].idx], ...updates };
       }
     }
     return enriched;
