@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { NDLBook } from "@/lib/ndl";
 
-// 出版社名ハッシュ → 色クラス（完全な文字列で列挙して Tailwind の purge を回避）
+// 出版社ごとに異なる色を割り当てるための30色パレット（Tailwind クラスを完全文字列で列挙）
 const PUBLISHER_COLORS = [
   "bg-blue-50 text-blue-700 border-blue-200",
   "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -15,17 +15,32 @@ const PUBLISHER_COLORS = [
   "bg-sky-50 text-sky-700 border-sky-200",
   "bg-indigo-50 text-indigo-700 border-indigo-200",
   "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200",
+  "bg-lime-50 text-lime-700 border-lime-200",
+  "bg-cyan-50 text-cyan-700 border-cyan-200",
+  "bg-pink-50 text-pink-700 border-pink-200",
+  "bg-green-50 text-green-700 border-green-200",
+  "bg-yellow-50 text-yellow-700 border-yellow-200",
+  "bg-red-50 text-red-700 border-red-200",
+  "bg-purple-50 text-purple-700 border-purple-200",
+  "bg-blue-100 text-blue-800 border-blue-300",
+  "bg-emerald-100 text-emerald-800 border-emerald-300",
+  "bg-violet-100 text-violet-800 border-violet-300",
+  "bg-orange-100 text-orange-800 border-orange-300",
+  "bg-rose-100 text-rose-800 border-rose-300",
+  "bg-teal-100 text-teal-800 border-teal-300",
+  "bg-amber-100 text-amber-800 border-amber-300",
+  "bg-sky-100 text-sky-800 border-sky-300",
+  "bg-indigo-100 text-indigo-800 border-indigo-300",
+  "bg-fuchsia-100 text-fuchsia-800 border-fuchsia-300",
+  "bg-lime-100 text-lime-800 border-lime-300",
+  "bg-cyan-100 text-cyan-800 border-cyan-300",
+  "bg-pink-100 text-pink-800 border-pink-300",
 ];
-
-function publisherColorClass(name: string): string {
-  let hash = 0;
-  for (const c of name) hash = (hash * 31 + c.charCodeAt(0)) & 0xffff;
-  return PUBLISHER_COLORS[hash % PUBLISHER_COLORS.length];
-}
 
 type Props = {
   books: NDLBook[];
   userDisciplines?: string[];
+  allPublishers?: string[]; // 全出版社リスト（色の一意割り当て用）
   bookmarked?: Set<string>;
   onToggleBookmark?: (book: NDLBook) => void;
 };
@@ -92,11 +107,13 @@ function bookLinkUrl(book: NDLBook): string | null {
 
 function BookRow({
   book,
+  publisherColor,
   userDisciplines,
   isBookmarked,
   onToggle,
 }: {
   book: NDLBook;
+  publisherColor: string;
   userDisciplines: string[];
   isBookmarked: boolean;
   onToggle: (() => void) | null;
@@ -132,7 +149,7 @@ function BookRow({
           )}
           {book.publisher && (
             <span
-              className={`inline-block align-middle ml-1.5 text-[10px] font-medium border px-1.5 py-0.5 rounded ${publisherColorClass(book.publisher)}`}
+              className={`inline-block align-middle ml-1.5 text-[10px] font-medium border px-1.5 py-0.5 rounded ${publisherColor}`}
             >
               {book.publisher}
             </span>
@@ -177,10 +194,16 @@ function BookRow({
 export default function BookListWithFilter({
   books,
   userDisciplines = [],
+  allPublishers = [],
   bookmarked = new Set(),
   onToggleBookmark,
 }: Props) {
   const [selectedDisc, setSelectedDisc] = useState<string | null>(null);
+
+  // 全出版社にインデックス順で色を割り当て（重複なし）
+  const publisherColorMap = new Map<string, string>(
+    allPublishers.map((name, i) => [name, PUBLISHER_COLORS[i % PUBLISHER_COLORS.length]])
+  );
 
   // 分野タグを件数付きで収集
   const discCounts = new Map<string, number>();
@@ -246,10 +269,14 @@ export default function BookListWithFilter({
         <div>
           {filtered.map((b, i) => {
             const cleanIsbn = b.isbn?.replace(/-/g, "") ?? null;
+            const publisherColor = b.publisher
+              ? (publisherColorMap.get(b.publisher) ?? PUBLISHER_COLORS[0])
+              : PUBLISHER_COLORS[0];
             return (
               <BookRow
                 key={`${b.isbn ?? b.title}-${i}`}
                 book={b}
+                publisherColor={publisherColor}
                 userDisciplines={userDisciplines}
                 isBookmarked={cleanIsbn ? bookmarked.has(cleanIsbn) : false}
                 onToggle={onToggleBookmark ? () => onToggleBookmark(b) : null}
