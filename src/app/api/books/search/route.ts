@@ -1,42 +1,46 @@
 import { NextResponse } from "next/server";
 
-const NDL_API = "https://ndlsearch.ndl.go.jp/api/opensearch";
+const NDL_SRU = "https://ndlsearch.ndl.go.jp/api/sru";
 
 function extractYear(issued: string): number | null {
   const match = issued.match(/(\d{4})/);
   return match ? parseInt(match[1]) : null;
 }
 
-/** "姓, 名" や "姓,名" → "姓名" に正規化（日本語著者のみスペースなし、英語著者はスペースあり） */
-function normalizeAuthor(raw: string): string {
-  const parts = raw.split(/,\s*/).map(s => s.trim()).filter(Boolean);
-  if (parts.length <= 1) return raw.trim();
-  // 先頭部分が日本語文字を含む場合は姓名をスペースなしで結合、英語名はスペースで結合
-  const hasJapanese = /[\u3040-\u30ff\u4e00-\u9fff]/.test(parts[0]);
-  return hasJapanese ? parts.join("") : parts.join(" ");
+/** XML タグの内容を取得（内部タグを除去） */
+function getXmlText(xml: string, tag: string): string {
+  const re = new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${tag}>`, "i");
+  const m = xml.match(re);
+  return m ? m[1].replace(/<[^>]+>/g, "").trim() : "";
 }
 
-/** dc:creator タグを全件取得して著者名を「、」で連結 */
-function getAllCreators(itemXml: string): string {
-  const matches = [...itemXml.matchAll(/<dc:creator[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/dc:creator>/gi)];
-  const authors = matches
-    .map(m => normalizeAuthor(m[1].trim()))
-    .filter(Boolean);
-
-  // 重複除去（NDLは同一著者が複数形式で入ることがある）
-  const unique = [...new Set(authors)];
-  return unique.join("、");
+/** XML タグの内容を全件取得 */
+function getAllXmlText(xml: string, tag: string): string[] {
+  const re = new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${tag}>`, "gi");
+  const results: string[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(xml)) !== null) {
+    const text = m[1].replace(/<[^>]+>/g, "").trim();
+    if (text) results.push(text);
+  }
+  return results;
 }
 
-function getDcTag(itemXml: string, tag: string): string {
-  const m = itemXml.match(new RegExp(`<dc:${tag}[^>]*>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?<\\/dc:${tag}>`, "i"));
-  return m ? m[1].trim() : "";
+/** "350p" "vi, 350p" "350ページ" などからページ数を抽出 */
+function parsePages(extent: string): number | null {
+  const m = extent.match(/(\d+)\s*[pPページ]/);
+  if (!m) return null;
+  const n = parseInt(m[1], 10);
+  return !isNaN(n) && n > 0 ? n : null;
 }
 
-function getDcTermsTag(itemXml: string, tag: string): string {
-  const m = itemXml.match(new RegExp(`<dcterms:${tag}[^>]*>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?<\\/dcterms:${tag}>`, "i"));
-  return m ? m[1].trim() : "";
-}
+type Candidate = {
+  title: string;
+  author: string;
+  publisherName: string;
+  publishedYear: number | null;
+  pages: number | null;
+};
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -46,57 +50,111 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "title パラメータが必要です" }, { status: 400 });
   }
 
-  // 国立国会図書館 OpenSearch API（無料・APIキー不要）
-  const url = new URL(NDL_API);
-  url.searchParams.set("title", title);
-  url.searchParams.set("cnt", "50"); // 多めに取得してフィルタ後5件確保
+  // 国立国会図書館 SRU API（図書のみ、新しい順）
+  const url = new URL(NDL_SRU);
+  url.searchParams.set("operation", "searchRetrieve");
+  url.searchParams.set("recordSchema", "dcndl");
+  url.searchParams.set("maximumRecords", "30");
+  url.searchParams.set("mediatype", "1");
+  url.searchParams.set("sortKeys", "issued,,0");
+  url.searchParams.set("query", `title="${title}"`);
 
   const res = await fetch(url.toString());
-
   if (!res.ok) {
     return NextResponse.json({ error: "書籍情報の取得に失敗しました" }, { status: 502 });
   }
 
   const xml = await res.text();
-  const itemMatches = xml.match(/<item>([\s\S]*?)<\/item>/g) ?? [];
 
-  // 入力キーワードを正規化（全角→半角、小文字化）
   const normalize = (s: string) =>
     s.normalize("NFKC").toLowerCase().replace(/\s+/g, "");
   const keyword = normalize(title);
 
-  type Candidate = {
-    title: string;
-    author: string;
-    publisherName: string;
-    publishedYear: number | null;
-  };
-
   const candidates: Candidate[] = [];
+  const candidateIsbns: (string | null)[] = [];
 
-  for (const itemXml of itemMatches) {
-    // 図書のみ対象（記事・雑誌・博士論文などを除外）
-    const categories = [...itemXml.matchAll(/<category>([^<]+)<\/category>/g)].map(m => m[1]);
-    if (!categories.includes("図書")) continue;
+  const recordDataRe = /<recordData>([\s\S]*?)<\/recordData>/gi;
+  let m: RegExpExecArray | null;
 
-    const itemTitle = getDcTag(itemXml, "title");
-    if (!itemTitle) continue;
+  while ((m = recordDataRe.exec(xml)) !== null && candidates.length < 5) {
+    const chunk = m[1];
 
-    // タイトルが入力キーワードを含むものだけに絞る
-    if (!normalize(itemTitle).includes(keyword)) continue;
+    // 雑誌タイトルレコードを除外
+    const descriptions = getAllXmlText(chunk, "dcterms:description");
+    if (descriptions.some((d) => d === "type : title")) continue;
 
-    const author = getAllCreators(itemXml);
-    const publisher = getDcTag(itemXml, "publisher");
-    const issued = getDcTermsTag(itemXml, "issued");
+    const itemTitle =
+      getXmlText(chunk, "dcterms:title") || getXmlText(chunk, "dc:title");
+    if (!itemTitle || !normalize(itemTitle).includes(keyword)) continue;
+
+    // ISBN 必須（ISBNなし = 雑誌・逐次刊行物など）
+    const isbnMatch = chunk.match(
+      /<dcterms:identifier[^>]*rdf:datatype="[^"]*ISBN[^"]*"[^>]*>([^<]+)<\/dcterms:identifier>/i
+    );
+    const isbn = isbnMatch ? isbnMatch[1].trim().replace(/[^0-9]/g, "") : null;
+    if (!isbn) continue;
+
+    const creators = getAllXmlText(chunk, "dc:creator");
+    const author = creators.join("／");
+
+    const publisher =
+      getXmlText(chunk, "dcterms:publisher") || getXmlText(chunk, "dc:publisher");
+
+    const dateRaw =
+      getXmlText(chunk, "dcterms:date") || getXmlText(chunk, "dcterms:issued");
+    const issued = dateRaw.replace(/\./g, "-");
+
+    const extent =
+      getXmlText(chunk, "dcterms:extent") || getXmlText(chunk, "dc:extent");
+    const pages = parsePages(extent);
 
     candidates.push({
       title: itemTitle,
       author,
       publisherName: publisher,
       publishedYear: extractYear(issued),
+      pages,
     });
+    candidateIsbns.push(isbn);
+  }
 
-    if (candidates.length >= 5) break;
+  if (candidates.length === 0) {
+    return NextResponse.json({ candidates: [] });
+  }
+
+  // ページ数が取れなかった候補を OpenBD で補完
+  const missingIsbns = candidateIsbns.filter(
+    (isbn, i) => isbn !== null && candidates[i].pages === null
+  ) as string[];
+
+  if (missingIsbns.length > 0) {
+    try {
+      const openBDRes = await fetch(
+        `https://api.openbd.jp/v1/get?isbn=${missingIsbns.join(",")}`
+      );
+      if (openBDRes.ok) {
+        const openBDData: Array<{
+          summary?: { isbn?: string; pages?: string };
+        } | null> = await openBDRes.json();
+
+        const pagesMap: Record<string, number> = {};
+        for (const entry of openBDData) {
+          if (entry?.summary?.isbn && entry.summary.pages) {
+            const p = parseInt(entry.summary.pages, 10);
+            if (!isNaN(p) && p > 0) pagesMap[entry.summary.isbn] = p;
+          }
+        }
+
+        for (let i = 0; i < candidates.length; i++) {
+          const isbn = candidateIsbns[i];
+          if (isbn && candidates[i].pages === null && pagesMap[isbn]) {
+            candidates[i].pages = pagesMap[isbn];
+          }
+        }
+      }
+    } catch {
+      // OpenBD 失敗時はページ数なしのまま返す
+    }
   }
 
   return NextResponse.json({ candidates });

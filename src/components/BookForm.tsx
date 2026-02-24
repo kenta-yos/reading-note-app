@@ -10,6 +10,7 @@ type BookCandidate = {
   author: string;
   publisherName: string;
   publishedYear: number | null;
+  pages: number | null;
 };
 
 type BookFormProps = {
@@ -68,6 +69,7 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
     setAuthor(candidate.author);
     setPublisher(candidate.publisherName);
     setPublishedYear(String(candidate.publishedYear ?? ""));
+    if (candidate.pages) setPages(String(candidate.pages));
     setCandidates([]);
     setShowCandidates(false);
     setSearchError("");

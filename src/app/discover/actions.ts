@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { fetchRecentBooks, fetchUpcomingBooks, enrichWithPrices } from "@/lib/ndl";
 import type { NDLBook } from "@/lib/ndl";
 
 export async function toggleBookmark(book: NDLBook): Promise<void> {
@@ -26,4 +27,64 @@ export async function toggleBookmark(book: NDLBook): Promise<void> {
     });
   }
   revalidatePath("/discover");
+}
+
+export async function syncNewBooks(): Promise<{ added: number }> {
+  const publishers = await prisma.watchPublisher.findMany({ orderBy: { name: "asc" } });
+  const publisherNames = publishers.map((p) => p.name);
+
+  if (publisherNames.length === 0) return { added: 0 };
+
+  const [recentRaw, upcomingRaw] = await Promise.all([
+    fetchRecentBooks(publisherNames),
+    fetchUpcomingBooks(publisherNames),
+  ]);
+
+  // recent と upcoming の重複排除（今月分が重複する）
+  const seen = new Set<string>();
+  const allRaw: NDLBook[] = [];
+  for (const b of [...recentRaw, ...upcomingRaw]) {
+    const key = b.isbn ?? b.title;
+    if (!seen.has(key)) { seen.add(key); allRaw.push(b); }
+  }
+
+  const allEnriched = await enrichWithPrices(allRaw);
+
+  // 1ヶ月以上前（前月より古い月）の書籍を先に削除
+  const today = new Date();
+  const oneMonthAgo = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
+  const expiredYM = `${oneMonthAgo.getFullYear()}-${String(oneMonthAgo.getMonth() + 1).padStart(2, "0")}`;
+  await prisma.discoveredBook.deleteMany({ where: { issued: { lt: expiredYM } } });
+
+  // 既存のISBNを取得
+  const existingIsbns = new Set(
+    (await prisma.discoveredBook.findMany({ select: { isbn: true } })).map((b) => b.isbn)
+  );
+
+  const newBooks = allEnriched.filter(
+    (b) => b.isbn && !existingIsbns.has(b.isbn.replace(/-/g, ""))
+  );
+
+  if (newBooks.length === 0) {
+    revalidatePath("/discover");
+    return { added: 0 };
+  }
+
+  const result = await prisma.discoveredBook.createMany({
+    data: newBooks.map((book) => ({
+      isbn: book.isbn!.replace(/-/g, ""),
+      title: book.title,
+      author: book.author || null,
+      publisher: book.publisher || null,
+      issued: book.issued,
+      price: book.price ?? null,
+      ndcCode: book.ndcCode || null,
+      discipline: book.discipline || null,
+      ndlUrl: book.ndlUrl || null,
+    })),
+    skipDuplicates: true,
+  });
+
+  revalidatePath("/discover");
+  return { added: result.count };
 }
