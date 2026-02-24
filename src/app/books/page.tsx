@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { prisma } from "@/lib/prisma";
 import BookCard from "@/components/BookCard";
 import BookFilters from "@/components/BookFilters";

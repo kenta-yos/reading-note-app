@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { prisma } from "@/lib/prisma";
 import PublisherManager from "@/components/PublisherManager";
 import Link from "next/link";
