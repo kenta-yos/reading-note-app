@@ -13,6 +13,7 @@ type Props = {
   bookmarkedBooks: NDLBook[];
   bookmarkedIsbns: string[];
   userDisciplines: string[];
+  allPublishers: string[];
   toggleBookmark: (book: NDLBook) => Promise<void>;
 };
 
@@ -22,6 +23,7 @@ export default function DiscoverTabs({
   bookmarkedBooks,
   bookmarkedIsbns,
   userDisciplines,
+  allPublishers,
   toggleBookmark,
 }: Props) {
   const router = useRouter();
@@ -115,6 +117,7 @@ export default function DiscoverTabs({
       <BookListWithFilter
         books={currentBooks}
         userDisciplines={userDisciplines}
+        allPublishers={allPublishers}
         bookmarked={optimisticBookmarked}
         onToggleBookmark={handleToggle}
       />

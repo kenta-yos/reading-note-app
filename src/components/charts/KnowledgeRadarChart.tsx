@@ -71,11 +71,11 @@ export default function KnowledgeRadarChart({ data }: Props) {
   }));
 
   return (
-    <ResponsiveContainer width="100%" height={400}>
+    <ResponsiveContainer width="100%" height={320}>
       <RadarChart
         data={formatted}
-        outerRadius="58%"
-        margin={{ top: 30, right: 70, bottom: 30, left: 70 }}
+        outerRadius="62%"
+        margin={{ top: 20, right: 60, bottom: 20, left: 60 }}
       >
         <PolarGrid />
         <PolarAngleAxis dataKey="subject" tick={<CustomAngleTick />} />

@@ -63,14 +63,14 @@ export default async function DiscoverPage() {
   });
   const publisherNames = publishers.map((p) => p.name);
 
-  // 今日・1ヶ月前・1ヶ月後の日付を計算
-  const today = new Date();
-  const todayStr = buildDateStr(today);
+  // 日本時間で今日・1ヶ月前・1ヶ月後の日付を計算
+  const todayStr = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo" }).format(new Date());
+  const [y, m, d] = todayStr.split("-").map(Number);
   const currentYM = todayStr.slice(0, 7);
-  const oneMonthAgo = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
+  const oneMonthAgo = new Date(y, m - 2, d); // m は1始まりなので m-2 = 1ヶ月前
   const oneMonthAgoStr = buildDateStr(oneMonthAgo);
   const oneMonthAgoYM = oneMonthAgoStr.slice(0, 7);
-  const oneMonthLater = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
+  const oneMonthLater = new Date(y, m, d); // m = 1ヶ月後（0始まりでm+1）
   const oneMonthLaterStr = buildDateStr(oneMonthLater);
   const oneMonthLaterYM = oneMonthLaterStr.slice(0, 7);
 
@@ -131,23 +131,25 @@ export default async function DiscoverPage() {
 
   const userDisciplines = disciplineRows.map((r) => r.discipline!).filter(Boolean);
 
+  // 全出版社リスト（タグ色の一意割り当て用）
+  const allPublishers = [...new Set(allBooks.map((b) => b.publisher).filter(Boolean) as string[])].sort();
+
   return (
     <div className="max-w-2xl mx-auto">
-      <div className="flex items-start justify-between mb-6">
-        <div>
+      {/* ヘッダー: 2行レイアウトでモバイル対応 */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold text-slate-800">新刊を探す</h1>
-          <p className="text-slate-500 text-sm mt-0.5">
-            {publisherNames.length}出版社の最新刊・近刊
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <DiscoverSyncButton />
           <Link
             href="/discover/publishers"
-            className="text-xs text-slate-400 hover:text-slate-600 border border-slate-200 rounded-lg px-3 py-1.5 transition-colors"
+            className="text-xs text-slate-400 hover:text-slate-600 border border-slate-200 rounded-lg px-3 py-1.5 transition-colors whitespace-nowrap"
           >
             出版社を管理
           </Link>
+        </div>
+        <div className="flex items-center justify-between mt-1.5">
+          <p className="text-slate-500 text-sm">最新刊・近刊</p>
+          <DiscoverSyncButton />
         </div>
       </div>
 
@@ -173,6 +175,7 @@ export default async function DiscoverPage() {
           bookmarkedBooks={bookmarkedBooks}
           bookmarkedIsbns={bookmarkedIsbns}
           userDisciplines={userDisciplines}
+          allPublishers={allPublishers}
           toggleBookmark={toggleBookmark}
         />
       </div>

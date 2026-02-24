@@ -50,9 +50,10 @@ export async function syncNewBooks(): Promise<{ added: number }> {
 
   const allEnriched = await enrichWithPrices(allRaw);
 
-  // 1ヶ月以上前（前月より古い月）の書籍を先に削除
-  const today = new Date();
-  const oneMonthAgo = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
+  // 1ヶ月以上前（前月より古い月）の書籍を先に削除（日本時間基準）
+  const todayJST = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo" }).format(new Date());
+  const [jy, jm, jd] = todayJST.split("-").map(Number);
+  const oneMonthAgo = new Date(jy, jm - 2, jd);
   const expiredYM = `${oneMonthAgo.getFullYear()}-${String(oneMonthAgo.getMonth() + 1).padStart(2, "0")}`;
   await prisma.discoveredBook.deleteMany({ where: { issued: { lt: expiredYM } } });
 
