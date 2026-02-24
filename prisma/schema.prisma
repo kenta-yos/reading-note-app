@@ -65,3 +65,17 @@ model DiscoverBookmark {
   ndlUrl     String?
   createdAt  DateTime @default(now())
 }
+
+model DiscoveredBook {
+  id          String   @id @default(cuid())
+  isbn        String   @unique
+  title       String
+  author      String?
+  publisher   String?
+  issued      String
+  price       Int?
+  ndcCode     String?
+  discipline  String?
+  ndlUrl      String?
+  firstSeenAt DateTime @default(now())
+}

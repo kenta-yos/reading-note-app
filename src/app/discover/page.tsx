@@ -2,9 +2,9 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { fetchRecentBooks, fetchUpcomingBooks, enrichWithPrices } from "@/lib/ndl";
 import type { NDLBook } from "@/lib/ndl";
 import DiscoverTabs from "@/components/DiscoverTabs";
+import DiscoverSyncButton from "@/components/DiscoverSyncButton";
 import { toggleBookmark } from "./actions";
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -42,9 +42,9 @@ function classifyBook(
     }
 
     if (d <= todayStr) {
-      return d >= oneMonthAgoStr ? "recent" : null; // 1ヶ月より古い → 除外
+      return d >= oneMonthAgoStr ? "recent" : null;
     } else {
-      return d <= oneMonthLaterStr ? "upcoming" : null; // 1ヶ月より先 → 除外
+      return d <= oneMonthLaterStr ? "upcoming" : null;
     }
   }
 
@@ -63,33 +63,6 @@ export default async function DiscoverPage() {
   });
   const publisherNames = publishers.map((p) => p.name);
 
-  const [recentRaw, upcomingRaw, bookmarks, disciplineRows] = await Promise.all([
-    publisherNames.length > 0
-      ? fetchRecentBooks(publisherNames)
-      : Promise.resolve([]),
-    publisherNames.length > 0
-      ? fetchUpcomingBooks(publisherNames)
-      : Promise.resolve([]),
-    prisma.discoverBookmark.findMany({ orderBy: { createdAt: "desc" } }),
-    prisma.book.groupBy({
-      by: ["discipline"],
-      where: { discipline: { not: null } },
-      _count: { id: true },
-      orderBy: { _count: { id: "desc" } },
-      take: 8,
-    }),
-  ]);
-
-  // 重複排除してから一括 OpenBD エンリッチ（1回のAPIコール）
-  // recent と upcoming は今月分が重複するため先に dedup
-  const seen = new Set<string>();
-  const allRaw: NDLBook[] = [];
-  for (const b of [...recentRaw, ...upcomingRaw]) {
-    const key = b.isbn ?? b.title;
-    if (!seen.has(key)) { seen.add(key); allRaw.push(b); }
-  }
-  const allEnriched = await enrichWithPrices(allRaw);
-
   // 今日・1ヶ月前・1ヶ月後の日付を計算
   const today = new Date();
   const todayStr = buildDateStr(today);
@@ -101,22 +74,47 @@ export default async function DiscoverPage() {
   const oneMonthLaterStr = buildDateStr(oneMonthLater);
   const oneMonthLaterYM = oneMonthLaterStr.slice(0, 7);
 
+  const [allDiscovered, bookmarks, disciplineRows] = await Promise.all([
+    prisma.discoveredBook.findMany({ orderBy: { issued: "desc" } }),
+    prisma.discoverBookmark.findMany({ orderBy: { createdAt: "desc" } }),
+    prisma.book.groupBy({
+      by: ["discipline"],
+      where: { discipline: { not: null } },
+      _count: { id: true },
+      orderBy: { _count: { id: "desc" } },
+      take: 8,
+    }),
+  ]);
+
+  // DB レコードを NDLBook 形式に変換
+  const allBooks: NDLBook[] = allDiscovered.map((b) => ({
+    title: b.title,
+    author: b.author ?? "",
+    publisher: b.publisher ?? "",
+    issued: b.issued,
+    isbn: b.isbn,
+    ndcCode: b.ndcCode,
+    discipline: b.discipline,
+    ndlUrl: b.ndlUrl,
+    price: b.price,
+  }));
+
   const classify = (b: NDLBook) =>
     classifyBook(b, todayStr, oneMonthAgoStr, oneMonthAgoYM, currentYM, oneMonthLaterStr, oneMonthLaterYM);
 
-  const recentBooks = allEnriched
+  const recentBooks = allBooks
     .filter((b) => classify(b) === "recent")
     .sort((a, b) => b.issued.localeCompare(a.issued));
-  const upcomingBooks = allEnriched
+  const upcomingBooks = allBooks
     .filter((b) => classify(b) === "upcoming")
     .sort((a, b) => a.issued.localeCompare(b.issued));
 
-  // ブックマーク済み ISBN（正規化済み）
+  // ブックマーク済み ISBN
   const bookmarkedIsbns = bookmarks.map((b) => b.isbn);
 
-  // ブックマークタブ用：現在の価格を補完
+  // ブックマークタブ用：価格を DB から補完
   const priceByIsbn: Record<string, number> = {};
-  for (const b of allEnriched) {
+  for (const b of allBooks) {
     if (b.isbn && b.price != null) priceByIsbn[b.isbn.replace(/-/g, "")] = b.price;
   }
   const bookmarkedBooks: NDLBook[] = bookmarks.map((b) => ({
@@ -142,12 +140,15 @@ export default async function DiscoverPage() {
             {publisherNames.length}出版社の最新刊・近刊
           </p>
         </div>
-        <Link
-          href="/discover/publishers"
-          className="text-xs text-slate-400 hover:text-slate-600 border border-slate-200 rounded-lg px-3 py-1.5 transition-colors"
-        >
-          出版社を管理
-        </Link>
+        <div className="flex items-center gap-2">
+          <DiscoverSyncButton />
+          <Link
+            href="/discover/publishers"
+            className="text-xs text-slate-400 hover:text-slate-600 border border-slate-200 rounded-lg px-3 py-1.5 transition-colors"
+          >
+            出版社を管理
+          </Link>
+        </div>
       </div>
 
       {publisherNames.length === 0 && (
@@ -156,6 +157,12 @@ export default async function DiscoverPage() {
           <Link href="/discover/publishers" className="underline ml-1">
             出版社を追加
           </Link>
+        </div>
+      )}
+
+      {allDiscovered.length === 0 && publisherNames.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 text-sm text-blue-800 mb-5">
+          「新刊を取得」ボタンを押すと新刊情報を読み込みます。初回のみ時間がかかることがあります。
         </div>
       )}
 
