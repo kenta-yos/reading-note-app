@@ -149,7 +149,15 @@ export default async function DiscoverPage() {
         </div>
         <div className="flex items-center justify-between mt-1.5">
           <p className="text-slate-500 text-sm">最新刊・近刊</p>
-          <DiscoverSyncButton />
+          <div className="flex items-center gap-2">
+            <Link
+              href="/events"
+              className="text-xs text-slate-400 hover:text-slate-600 border border-slate-200 rounded-lg px-3 py-1.5 transition-colors whitespace-nowrap"
+            >
+              🎤 著者イベント
+            </Link>
+            <DiscoverSyncButton />
+          </div>
         </div>
       </div>
 

@@ -9,14 +9,12 @@ import { scrapeIwanami } from "./iwanami";
 import { scrapeKinokuniya } from "./kinokuniya";
 import { scrapeTsutayaDaikanyama } from "./tsutaya-daikanyama";
 import { scrapeMaruzenJunkudo } from "./maruzenjunkudo";
-import { scrapeSerper } from "./google-cse";
 import type { RawEvent } from "./connpass";
 
 export type { RawEvent };
 
 /**
  * @param authorsByPriority 登録冊数の多い順に並んだ著者名リスト
- *   （書店スクレイパーは順不同で使用、Google CSE は先頭から消費）
  */
 export async function scrapeAllEvents(
   authorsByPriority: string[],
@@ -32,7 +30,6 @@ export async function scrapeAllEvents(
     scrapeKinokuniya(authorsByPriority, todayStr),
     scrapeTsutayaDaikanyama(authorsByPriority, todayStr),
     scrapeMaruzenJunkudo(authorsByPriority, todayStr),
-    scrapeSerper(authorsByPriority, todayStr),
   ];
 
   const settled = await Promise.allSettled(tasks);
