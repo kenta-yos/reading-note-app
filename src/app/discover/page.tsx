@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import type { NDLBook } from "@/lib/ndl";
 import DiscoverTabs from "@/components/DiscoverTabs";
 import DiscoverSyncButton from "@/components/DiscoverSyncButton";
+import EventsLink from "@/components/EventsLink";
 import { toggleBookmark } from "./actions";
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -150,12 +151,7 @@ export default async function DiscoverPage() {
         <div className="flex items-center justify-between mt-1.5">
           <p className="text-slate-500 text-sm">最新刊・近刊</p>
           <div className="flex items-center gap-2">
-            <Link
-              href="/events"
-              className="text-xs text-slate-400 hover:text-slate-600 border border-slate-200 rounded-lg px-3 py-1.5 transition-colors whitespace-nowrap"
-            >
-              🎤 著者イベント
-            </Link>
+            <EventsLink />
             <DiscoverSyncButton />
           </div>
         </div>
