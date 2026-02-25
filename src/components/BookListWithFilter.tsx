@@ -281,7 +281,6 @@ export default function BookListWithFilter({
                     value={publisherSearch}
                     onChange={(e) => setPublisherSearch(e.target.value)}
                     className="w-full text-xs px-2 py-1 border border-slate-200 rounded focus:outline-none focus:border-slate-400"
-                    autoFocus
                   />
                 </div>
                 <div className="max-h-48 overflow-y-auto">
