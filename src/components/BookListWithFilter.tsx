@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { NDLBook } from "@/lib/ndl";
 
 // 出版社ごとに異なる色を割り当てるための30色パレット（Tailwind クラスを完全文字列で列挙）
@@ -198,65 +198,135 @@ export default function BookListWithFilter({
   bookmarked = new Set(),
   onToggleBookmark,
 }: Props) {
-  const [selectedDisc, setSelectedDisc] = useState<string | null>(null);
+  const [selectedPublisher, setSelectedPublisher] = useState<string | null>(null);
+  const [publisherSearch, setPublisherSearch] = useState("");
+  const [isPublisherOpen, setIsPublisherOpen] = useState(false);
+  const comboboxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleOutside(e: MouseEvent) {
+      if (comboboxRef.current && !comboboxRef.current.contains(e.target as Node)) {
+        setIsPublisherOpen(false);
+        setPublisherSearch("");
+      }
+    }
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, []);
 
   // 全出版社にインデックス順で色を割り当て（重複なし）
   const publisherColorMap = new Map<string, string>(
     allPublishers.map((name, i) => [name, PUBLISHER_COLORS[i % PUBLISHER_COLORS.length]])
   );
 
-  // 分野タグを件数付きで収集
-  const discCounts = new Map<string, number>();
+  // 現タブに存在する出版社のみ（フィルター選択肢用）
+  const publishersInBooks = [...new Set(books.map((b) => b.publisher).filter(Boolean))].sort() as string[];
+
+  const filtered = selectedPublisher
+    ? books.filter((b) => b.publisher === selectedPublisher)
+    : books;
+
+  // 検索でフィルタリングした出版社リスト
+  const filteredPublishers = publisherSearch
+    ? publishersInBooks.filter((p) => p.includes(publisherSearch))
+    : publishersInBooks;
+
+  // 各出版社の件数（books 内）
+  const publisherBookCounts = new Map<string, number>();
   for (const b of books) {
-    if (b.discipline) {
-      discCounts.set(b.discipline, (discCounts.get(b.discipline) ?? 0) + 1);
+    if (b.publisher) {
+      publisherBookCounts.set(b.publisher, (publisherBookCounts.get(b.publisher) ?? 0) + 1);
     }
   }
-  const disciplines = [...discCounts.entries()].sort((a, b) => b[1] - a[1]);
-
-  const filtered = selectedDisc
-    ? books.filter((b) => b.discipline === selectedDisc)
-    : books;
 
   return (
     <div>
-      {/* フィルターバー */}
-      {disciplines.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mb-4">
-          <button
-            onClick={() => setSelectedDisc(null)}
-            className={[
-              "px-2.5 py-1 rounded-full text-xs font-medium transition-colors",
-              selectedDisc === null
-                ? "bg-slate-700 text-white"
-                : "bg-slate-100 text-slate-500 hover:bg-slate-200",
-            ].join(" ")}
-          >
-            すべて ({books.length})
-          </button>
-          {disciplines.map(([disc, count]) => {
-            const isInterest = userDisciplines.includes(disc);
-            const isSelected = selectedDisc === disc;
-            return (
-              <button
-                key={disc}
-                onClick={() => setSelectedDisc(disc === selectedDisc ? null : disc)}
-                className={[
-                  "px-2.5 py-1 rounded-full text-xs font-medium transition-colors",
-                  isSelected
-                    ? isInterest
-                      ? "bg-emerald-600 text-white"
-                      : "bg-blue-600 text-white"
-                    : isInterest
-                    ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
-                    : "bg-slate-100 text-slate-500 hover:bg-slate-200",
-                ].join(" ")}
-              >
-                {isInterest ? "★ " : ""}
-                {disc} ({count})
-              </button>
-            );
-          })}
+      {/* 出版社コンボボックス */}
+      {publishersInBooks.length >= 2 && (
+        <div className="mb-2" ref={comboboxRef}>
+          <div className="relative inline-block">
+            <button
+              onClick={() => {
+                setIsPublisherOpen((prev) => !prev);
+                if (isPublisherOpen) setPublisherSearch("");
+              }}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200"
+            >
+              <span>
+                出版社: {selectedPublisher ?? "すべて"}
+              </span>
+              {selectedPublisher ? (
+                <span
+                  role="button"
+                  aria-label="出版社フィルターをクリア"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedPublisher(null);
+                  }}
+                  className="ml-0.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  ✕
+                </span>
+              ) : (
+                <span className="text-slate-400">▼</span>
+              )}
+            </button>
+
+            {isPublisherOpen && (
+              <div className="absolute left-0 top-full mt-1 z-50 w-56 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden">
+                <div className="p-1.5 border-b border-slate-100">
+                  <input
+                    type="text"
+                    placeholder="出版社を検索..."
+                    value={publisherSearch}
+                    onChange={(e) => setPublisherSearch(e.target.value)}
+                    className="w-full text-xs px-2 py-1 border border-slate-200 rounded focus:outline-none focus:border-slate-400"
+                    autoFocus
+                  />
+                </div>
+                <div className="max-h-48 overflow-y-auto">
+                  {!publisherSearch && (
+                    <button
+                      onClick={() => {
+                        setSelectedPublisher(null);
+                        setIsPublisherOpen(false);
+                        setPublisherSearch("");
+                      }}
+                      className={[
+                        "w-full text-left px-3 py-1.5 text-xs transition-colors",
+                        selectedPublisher === null
+                          ? "bg-slate-700 text-white"
+                          : "text-slate-600 hover:bg-slate-50",
+                      ].join(" ")}
+                    >
+                      すべての出版社 ({books.length})
+                    </button>
+                  )}
+                  {filteredPublishers.map((pub) => (
+                    <button
+                      key={pub}
+                      onClick={() => {
+                        setSelectedPublisher(pub);
+                        setIsPublisherOpen(false);
+                        setPublisherSearch("");
+                      }}
+                      className={[
+                        "w-full text-left px-3 py-1.5 text-xs transition-colors",
+                        selectedPublisher === pub
+                          ? "bg-slate-700 text-white"
+                          : "text-slate-600 hover:bg-slate-50",
+                      ].join(" ")}
+                    >
+                      {pub} ({publisherBookCounts.get(pub) ?? 0})
+                    </button>
+                  ))}
+                  {filteredPublishers.length === 0 && (
+                    <p className="px-3 py-2 text-xs text-slate-400">見つかりません</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
