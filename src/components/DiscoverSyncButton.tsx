@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Spinner from "@/components/Spinner";
 import { syncNewBooks } from "@/app/discover/actions";
 
 export default function DiscoverSyncButton() {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<{ added: number } | null>(null);
 
@@ -13,6 +15,7 @@ export default function DiscoverSyncButton() {
     startTransition(async () => {
       const r = await syncNewBooks();
       setResult(r);
+      router.refresh();
     });
   }
 
