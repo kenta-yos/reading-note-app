@@ -79,3 +79,21 @@ model DiscoveredBook {
   ndlUrl      String?
   firstSeenAt DateTime @default(now())
 }
+
+enum EventStatus {
+  PENDING
+  INTERESTED
+  DISMISSED
+}
+
+model EventCandidate {
+  id             String      @id @default(cuid())
+  source         String
+  title          String
+  url            String      @unique
+  startDate      String?
+  venue          String?
+  matchedAuthors String[]
+  status         EventStatus @default(PENDING)
+  fetchedAt      DateTime    @default(now())
+}

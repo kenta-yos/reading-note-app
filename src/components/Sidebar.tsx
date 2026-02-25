@@ -10,6 +10,7 @@ const navItems = [
   { href: "/analytics", label: "知識分析", icon: "🧠" },
   { href: "/discover", label: "新刊を探す", icon: "🔍" },
   { href: "/goals", label: "年間目標", icon: "🎯" },
+  { href: "/events", label: "著者イベント", icon: "🎤" },
   { href: "/categories", label: "カテゴリ管理", icon: "🗂️" },
 ];
 

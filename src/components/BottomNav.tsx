@@ -8,6 +8,7 @@ const navItems = [
   { href: "/", label: "ホーム", icon: "📊" },
   { href: "/books", label: "記録", icon: "📚" },
   { href: "/discover", label: "新刊", icon: "🔍" },
+  { href: "/events", label: "イベント", icon: "🎤" },
   { href: "/analytics", label: "分析", icon: "🧠" },
 ];
 
@@ -43,7 +44,7 @@ export default function BottomNav() {
       className="lg:hidden fixed left-4 right-4 bg-white rounded-2xl z-50 shadow-xl border border-slate-100"
       style={{ bottom: "calc(env(safe-area-inset-bottom) + 12px)" }}
     >
-      <div className="grid grid-cols-4">
+      <div className="grid grid-cols-5">
         {navItems.map((item, idx) => {
           const active = isActive(item.href);
           const loading = pending === item.href;
