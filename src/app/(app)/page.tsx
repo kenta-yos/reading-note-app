@@ -125,12 +125,13 @@ export default async function DashboardPage({
 
       {/* ── 1. サマリー ── */}
       <div className="grid grid-cols-2 gap-3 lg:gap-4 mb-6 lg:mb-8">
-        <StatCard title="読書数" value={`${stats.totalBooks} 冊`} icon="📚" />
+        <StatCard title="読書数" value={`${stats.totalBooks} 冊`} icon="📚" href="/books?status=READ" />
         <StatCard
           title="読書量"
           value={`${stats.totalPages.toLocaleString()} P`}
           icon="📖"
           sub={stats.totalBooks > 0 ? `平均 ${Math.round(stats.totalPages / stats.totalBooks).toLocaleString()} P/冊` : undefined}
+          href="/books?status=READ"
         />
       </div>
 

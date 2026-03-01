@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import BookCard from "./BookCard";
 import Spinner from "./Spinner";
@@ -29,15 +29,39 @@ export default function BookList({ books, totalCount, hasMore }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
-  const handleLoadMore = () => {
-    if (loading) return;
+  // Reset loading when books change (new data arrived)
+  useEffect(() => {
+    setLoading(false);
+  }, [books.length]);
+
+  const loadMore = useCallback(() => {
+    if (loading || !hasMore) return;
     setLoading(true);
     const params = new URLSearchParams(searchParams.toString());
     const currentTake = Number(params.get("take") || "10");
     params.set("take", String(currentTake + 10));
     router.push(`/books?${params.toString()}`, { scroll: false });
-  };
+  }, [loading, hasMore, searchParams, router]);
+
+  // IntersectionObserver for infinite scroll
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadMore();
+        }
+      },
+      { rootMargin: "200px" }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, loadMore]);
 
   if (books.length === 0) {
     const q = searchParams.get("q");
@@ -73,20 +97,9 @@ export default function BookList({ books, totalCount, hasMore }: Props) {
           {books.length} / {totalCount} 冊を表示
         </p>
         {hasMore && (
-          <button
-            onClick={handleLoadMore}
-            disabled={loading}
-            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:border-blue-300 hover:text-blue-600 transition-colors shadow-sm disabled:opacity-50"
-          >
-            {loading ? (
-              <>
-                <Spinner className="w-4 h-4 text-slate-400" />
-                読み込み中...
-              </>
-            ) : (
-              "もっと見る"
-            )}
-          </button>
+          <div ref={sentinelRef} className="flex justify-center py-4">
+            {loading && <Spinner className="w-5 h-5 text-slate-400" />}
+          </div>
         )}
       </div>
     </div>

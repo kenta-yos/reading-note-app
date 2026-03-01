@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Spinner from "./Spinner";
 
 const navItems = [
@@ -15,10 +15,32 @@ export default function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [pending, setPending] = useState<string | null>(null);
+  const [hidden, setHidden] = useState(false);
+  const lastScrollY = useRef(0);
+  const ticking = useRef(false);
 
   useEffect(() => {
     setPending(null);
   }, [pathname]);
+
+  const onScroll = useCallback(() => {
+    if (ticking.current) return;
+    ticking.current = true;
+    requestAnimationFrame(() => {
+      const currentY = window.scrollY;
+      const delta = currentY - lastScrollY.current;
+      if (Math.abs(delta) > 10) {
+        setHidden(delta > 0 && currentY > 60);
+        lastScrollY.current = currentY;
+      }
+      ticking.current = false;
+    });
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [onScroll]);
 
   const isActive = (href: string) =>
     href === "/"
@@ -40,7 +62,9 @@ export default function BottomNav() {
 
   return (
     <nav
-      className="lg:hidden fixed left-4 right-4 bg-white rounded-2xl z-50 shadow-xl border border-slate-100"
+      className={`lg:hidden fixed left-4 right-4 bg-white rounded-2xl z-50 shadow-xl border border-slate-100 transition-transform duration-300 ${
+        hidden ? "translate-y-[calc(100%+24px)]" : "translate-y-0"
+      }`}
       style={{ bottom: "calc(env(safe-area-inset-bottom) + 12px)" }}
     >
       <div className="grid grid-cols-4">

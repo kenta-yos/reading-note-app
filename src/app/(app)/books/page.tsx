@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import BookList from "@/components/BookList";
 import BookFilters from "@/components/BookFilters";
 import ActionLink from "@/components/ActionLink";
+import { BookListSkeleton } from "@/components/ui/BookCardSkeleton";
 import { Suspense } from "react";
 import { getAvailableYears } from "@/lib/stats";
 import { BOOK_STATUSES } from "@/lib/types";
@@ -118,11 +119,7 @@ export default async function BooksPage({
       </Suspense>
 
       <Suspense
-        fallback={
-          <p className="text-slate-400 text-sm py-12 text-center">
-            {params.q ? `「${params.q}」を検索中…` : "読み込み中…"}
-          </p>
-        }
+        fallback={<BookListSkeleton />}
       >
         <BookListServer searchParams={params} />
       </Suspense>

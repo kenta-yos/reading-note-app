@@ -51,8 +51,8 @@ export default function BookFilters({ categories, years }: Props) {
 
   return (
     <div className="space-y-3 mb-5 lg:mb-6">
-      {/* ステータスタブ */}
-      <div className="flex border-b border-slate-200">
+      {/* ステータスタブ — sticky on scroll */}
+      <div className="flex border-b border-slate-200 sticky top-0 z-30 bg-slate-50 -mx-4 px-4 lg:-mx-8 lg:px-8 pt-1">
         {STATUS_FLOW.map((key) => {
           const { label, color } = BOOK_STATUSES[key];
           const isActive = activeStatus === key;

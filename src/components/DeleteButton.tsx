@@ -3,19 +3,23 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Spinner from "./Spinner";
+import { useToast } from "./ui/Toast";
 
 export default function DeleteButton({ id }: { id: string }) {
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const router = useRouter();
+  const { toast } = useToast();
 
   const handleDelete = async () => {
     setDeleting(true);
     try {
       await fetch(`/api/books/${id}`, { method: "DELETE" });
+      toast("削除しました");
       router.push("/books");
       router.refresh();
     } catch {
+      toast("削除に失敗しました", "error");
       setDeleting(false);
       setConfirming(false);
     }

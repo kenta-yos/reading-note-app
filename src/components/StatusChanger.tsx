@@ -3,6 +3,9 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { BOOK_STATUSES, BookStatus, STATUS_FLOW } from "@/lib/types";
+import BottomSheet from "./ui/BottomSheet";
+import { useToast } from "./ui/Toast";
+import { haptic } from "@/lib/haptics";
 import Spinner from "./Spinner";
 
 type Props = {
@@ -19,10 +22,21 @@ const DOT_COLORS: Record<BookStatus, string> = {
 
 export default function StatusChanger({ bookId, currentStatus }: Props) {
   const router = useRouter();
+  const { toast } = useToast();
   const [status, setStatus] = useState<BookStatus>(currentStatus);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1023px)");
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -37,10 +51,12 @@ export default function StatusChanger({ bookId, currentStatus }: Props) {
   const changeStatus = async (newStatus: BookStatus) => {
     if (newStatus === status) {
       setOpen(false);
+      setSheetOpen(false);
       return;
     }
     setLoading(true);
     setOpen(false);
+    setSheetOpen(false);
     try {
       const res = await fetch(`/api/books/${bookId}`, {
         method: "PATCH",
@@ -49,10 +65,20 @@ export default function StatusChanger({ bookId, currentStatus }: Props) {
       });
       if (res.ok) {
         setStatus(newStatus);
+        haptic("success");
+        toast(`${BOOK_STATUSES[newStatus].label}に変更しました`);
         router.refresh();
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLabelTap = () => {
+    if (isMobile) {
+      setSheetOpen(true);
+    } else {
+      setOpen(!open);
     }
   };
 
@@ -87,10 +113,10 @@ export default function StatusChanger({ bookId, currentStatus }: Props) {
         })}
       </div>
 
-      {/* 現在ステータスラベル（タップでドロップダウン） */}
+      {/* 現在ステータスラベル（タップでドロップダウン / ボトムシート） */}
       <div className="relative">
         <button
-          onClick={() => setOpen(!open)}
+          onClick={handleLabelTap}
           disabled={loading}
           className="text-sm font-medium text-slate-600 hover:text-slate-800 transition-colors flex items-center gap-1"
         >
@@ -106,7 +132,8 @@ export default function StatusChanger({ bookId, currentStatus }: Props) {
           )}
         </button>
 
-        {open && (
+        {/* Desktop dropdown */}
+        {open && !isMobile && (
           <div className="absolute top-full left-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-20 min-w-[140px] overflow-hidden">
             {STATUS_FLOW.map((key) => {
               const s = BOOK_STATUSES[key];
@@ -134,6 +161,35 @@ export default function StatusChanger({ bookId, currentStatus }: Props) {
           </div>
         )}
       </div>
+
+      {/* Mobile BottomSheet */}
+      <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)} title="ステータスを変更">
+        <div className="p-2">
+          {STATUS_FLOW.map((key) => {
+            const s = BOOK_STATUSES[key];
+            const isActive = key === status;
+            return (
+              <button
+                key={key}
+                onClick={() => changeStatus(key)}
+                className={`w-full text-left px-4 py-3.5 text-sm rounded-xl transition-colors flex items-center gap-3 ${
+                  isActive
+                    ? "bg-slate-50 font-semibold text-slate-800"
+                    : "text-slate-600 active:bg-slate-50"
+                }`}
+              >
+                <span className={`w-3 h-3 rounded-full shrink-0 ${DOT_COLORS[key]}`} />
+                {s.label}
+                {isActive && (
+                  <svg className="w-4 h-4 ml-auto text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </BottomSheet>
     </div>
   );
 }
