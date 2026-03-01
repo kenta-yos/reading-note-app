@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import DeleteButton from "@/components/DeleteButton";
 import ActionLink from "@/components/ActionLink";
 import StatusChanger from "@/components/StatusChanger";
-import Link from "next/link";
 import { BookStatus } from "@/lib/types";
 
 export default async function BookDetailPage({
@@ -29,75 +28,68 @@ export default async function BookDetailPage({
       })
     : null;
 
+  const meta = [
+    book.category,
+    book.rating ? "★".repeat(book.rating) + "☆".repeat(5 - book.rating) : null,
+    `${book.pages.toLocaleString()}p`,
+    readAtLabel ? `${readAtLabel} 読了` : null,
+  ].filter(Boolean);
+
   return (
     <div className="max-w-2xl mx-auto">
-      {/* 戻るボタン + パンくず */}
-      <div className="flex items-center gap-2 mb-6 text-sm text-slate-400">
+      {/* ナビゲーション: 戻る / 編集 / 削除 */}
+      <div className="flex items-center justify-between mb-4">
         <ActionLink
           href="/books"
-          className="inline-flex items-center gap-1 text-slate-500 hover:text-blue-600 transition-colors"
-          spinnerClassName="w-3.5 h-3.5 text-slate-400"
+          className="p-2 -ml-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+          spinnerClassName="w-5 h-5 text-slate-400"
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
           </svg>
-          一覧に戻る
         </ActionLink>
-        <span>/</span>
-        <span className="text-slate-600 truncate">{book.title}</span>
-      </div>
-
-      {/* ヘッダー */}
-      <div className="mb-6">
-        <h1 className="text-xl lg:text-2xl font-bold text-slate-800 leading-snug mb-1">
-          {book.title}
-        </h1>
-        {book.author && (
-          <p className="text-slate-500 text-sm">{book.author}</p>
-        )}
-        {(book.publisher || book.publishedYear) && (
-          <p className="text-xs text-slate-400 mt-0.5">
-            {[book.publisher, book.publishedYear ? `${book.publishedYear}年刊` : null]
-              .filter(Boolean)
-              .join("　")}
-          </p>
-        )}
-        <div className="flex items-center gap-2 mt-3">
+        <div className="flex items-center gap-1">
           <ActionLink
             href={`/books/${id}/edit`}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium transition-colors shadow-sm min-w-[72px] justify-center"
-            spinnerClassName="w-4 h-4 text-white"
+            className="p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+            spinnerClassName="w-5 h-5 text-slate-400"
           >
-            編集する
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+            </svg>
           </ActionLink>
           <DeleteButton id={id} />
         </div>
       </div>
 
-      {/* ステータス */}
-      <div className="mb-4">
-        <StatusChanger bookId={book.id} currentStatus={book.status as BookStatus} />
-      </div>
+      {/* 書籍情報カード */}
+      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm mb-4">
+        <h1 className="text-lg lg:text-xl font-bold text-slate-800 leading-snug">
+          {book.title}
+        </h1>
+        {book.author && (
+          <p className="text-slate-500 text-sm mt-1">{book.author}</p>
+        )}
+        {(book.publisher || book.publishedYear) && (
+          <p className="text-xs text-slate-400 mt-0.5">
+            {[book.publisher, book.publishedYear ? `${book.publishedYear}年刊` : null]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+        )}
 
-      {/* メタ情報 */}
-      <div className="flex flex-wrap gap-2 mb-6">
-        {book.category && (
-          <span className="text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full font-medium">
-            {book.category}
-          </span>
-        )}
-        {book.rating && (
-          <span className="text-xs bg-amber-50 text-amber-600 px-2.5 py-1 rounded-full font-medium">
-            {"★".repeat(book.rating)}{"☆".repeat(5 - book.rating)}
-          </span>
-        )}
-        <span className="text-xs bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full">
-          {book.pages.toLocaleString()} ページ
-        </span>
-        {readAtLabel && (
-          <span className="text-xs bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full">
-            {readAtLabel} 読了
-          </span>
+        {/* ステータス */}
+        <div className="mt-4 pt-4 border-t border-slate-100">
+          <StatusChanger bookId={book.id} currentStatus={book.status as BookStatus} />
+        </div>
+
+        {/* メタ情報 */}
+        {meta.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-400">
+            {meta.map((item, i) => (
+              <span key={i}>{item}</span>
+            ))}
+          </div>
         )}
       </div>
 
@@ -142,16 +134,7 @@ export default async function BookDetailPage({
             {book.notes.trim()}
           </p>
         ) : (
-          <div className="text-center py-6">
-            <p className="text-sm text-slate-400 mb-3">感想はまだ記録されていません</p>
-            <ActionLink
-              href={`/books/${id}/edit`}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 text-sm text-slate-500 hover:text-blue-600 hover:border-blue-300 transition-colors"
-              spinnerClassName="w-4 h-4 text-slate-400"
-            >
-              感想を書く →
-            </ActionLink>
-          </div>
+          <p className="text-sm text-slate-400">まだ記録されていません</p>
         )}
       </div>
     </div>
