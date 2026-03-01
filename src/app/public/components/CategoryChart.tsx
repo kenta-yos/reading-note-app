@@ -7,18 +7,18 @@ const COLORS = [
   "#fb923c", "#38bdf8", "#c084fc", "#4ade80",
 ];
 
-type CategoryData = { category: string; count: number };
+type DisciplineData = { discipline: string; count: number };
 
 type Props = {
-  data: CategoryData[];
-  selectedCategory: string | null;
-  onCategoryClick: (category: string | null) => void;
+  data: DisciplineData[];
+  selectedDiscipline: string | null;
+  onDisciplineClick: (discipline: string | null) => void;
 };
 
-export default function CategoryChart({
+export default function DisciplineChart({
   data,
-  selectedCategory,
-  onCategoryClick,
+  selectedDiscipline,
+  onDisciplineClick,
 }: Props) {
   if (!data.length) return null;
 
@@ -28,20 +28,20 @@ export default function CategoryChart({
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
       <h2 className="text-sm font-semibold text-slate-700 mb-1">
-        カテゴリ分布
+        学問分野の分布
       </h2>
       <p className="text-xs text-slate-400 mb-3">
         クリックで本リストを絞り込み
       </p>
       <div className="space-y-1.5">
         {sorted.map((d, i) => {
-          const isSelected = selectedCategory === d.category;
+          const isSelected = selectedDiscipline === d.discipline;
           const pct = (d.count / maxCount) * 100;
           return (
             <button
-              key={d.category}
+              key={d.discipline}
               onClick={() =>
-                onCategoryClick(isSelected ? null : d.category)
+                onDisciplineClick(isSelected ? null : d.discipline)
               }
               className={`w-full flex items-center gap-2 px-2 py-1 rounded-md text-left transition-colors hover:bg-slate-50 ${
                 isSelected ? "bg-slate-100" : ""
@@ -53,8 +53,8 @@ export default function CategoryChart({
                   backgroundColor: COLORS[i % COLORS.length],
                 }}
               />
-              <span className="text-xs text-slate-600 w-24 truncate shrink-0">
-                {d.category}
+              <span className="text-xs text-slate-600 w-28 truncate shrink-0">
+                {d.discipline}
               </span>
               <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
                 <div

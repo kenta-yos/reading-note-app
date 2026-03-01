@@ -6,6 +6,7 @@ type PublicBook = {
   title: string;
   author: string | null;
   category: string | null;
+  discipline: string | null;
   readYear: number;
   pageCount: number;
 };
@@ -17,17 +18,17 @@ const PAGE_SIZE = 10;
 type Props = {
   books: PublicBook[];
   filterYear: number | null;
-  filterCategory: string | null;
+  filterDiscipline: string | null;
   onYearChange: (year: number | null) => void;
-  onCategoryChange: (category: string | null) => void;
+  onDisciplineChange: (discipline: string | null) => void;
 };
 
 export default function BookList({
   books,
   filterYear,
-  filterCategory,
+  filterDiscipline,
   onYearChange,
-  onCategoryChange,
+  onDisciplineChange,
 }: Props) {
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("readYear");
@@ -38,17 +39,19 @@ export default function BookList({
     () => [...new Set(books.map((b) => b.readYear))].sort((a, b) => b - a),
     [books]
   );
-  const categories = useMemo(
+  const disciplines = useMemo(
     () =>
-      [...new Set(books.map((b) => b.category).filter(Boolean) as string[])].sort(),
+      [...new Set(books.map((b) => b.discipline).filter(Boolean) as string[])]
+        .filter((d) => d !== "未分類")
+        .sort(),
     [books]
   );
 
   const filtered = useMemo(() => {
     let result = books;
     if (filterYear) result = result.filter((b) => b.readYear === filterYear);
-    if (filterCategory)
-      result = result.filter((b) => b.category === filterCategory);
+    if (filterDiscipline)
+      result = result.filter((b) => b.discipline === filterDiscipline);
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       result = result.filter(
@@ -63,10 +66,10 @@ export default function BookList({
       if (sortKey === "title") return a.title.localeCompare(b.title) * dir;
       return (a.author ?? "").localeCompare(b.author ?? "") * dir;
     });
-  }, [books, filterYear, filterCategory, search, sortKey, sortAsc]);
+  }, [books, filterYear, filterDiscipline, search, sortKey, sortAsc]);
 
   // Reset visible count when filters change
-  const filteredKey = `${filterYear}-${filterCategory}-${search}-${sortKey}-${sortAsc}`;
+  const filteredKey = `${filterYear}-${filterDiscipline}-${search}-${sortKey}-${sortAsc}`;
   const [prevKey, setPrevKey] = useState(filteredKey);
   if (filteredKey !== prevKey) {
     setPrevKey(filteredKey);
@@ -122,16 +125,16 @@ export default function BookList({
           ))}
         </select>
         <select
-          value={filterCategory ?? ""}
+          value={filterDiscipline ?? ""}
           onChange={(e) =>
-            onCategoryChange(e.target.value || null)
+            onDisciplineChange(e.target.value || null)
           }
           className="px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
         >
-          <option value="">全カテゴリ</option>
-          {categories.map((c) => (
-            <option key={c} value={c}>
-              {c}
+          <option value="">全分野</option>
+          {disciplines.map((d) => (
+            <option key={d} value={d}>
+              {d}
             </option>
           ))}
         </select>
@@ -155,7 +158,7 @@ export default function BookList({
                 著者{sortIndicator("author")}
               </th>
               <th className="text-left py-2 px-2 text-xs font-medium text-slate-500">
-                カテゴリ
+                分野
               </th>
               <th
                 className="text-right py-2 px-2 text-xs font-medium text-slate-500 cursor-pointer hover:text-slate-700 select-none"
@@ -179,9 +182,9 @@ export default function BookList({
                 </td>
                 <td className="py-2 px-2 text-slate-500">{b.author ?? "—"}</td>
                 <td className="py-2 px-2">
-                  {b.category && (
+                  {b.discipline && b.discipline !== "未分類" && (
                     <span className="inline-block px-2 py-0.5 text-xs rounded-full bg-slate-100 text-slate-600">
-                      {b.category}
+                      {b.discipline}
                     </span>
                   )}
                 </td>
@@ -214,9 +217,9 @@ export default function BookList({
                 {b.pageCount.toLocaleString()}P
               </span>
             </div>
-            {b.category && (
+            {b.discipline && b.discipline !== "未分類" && (
               <span className="inline-block mt-1.5 px-2 py-0.5 text-xs rounded-full bg-slate-100 text-slate-600">
-                {b.category}
+                {b.discipline}
               </span>
             )}
           </div>

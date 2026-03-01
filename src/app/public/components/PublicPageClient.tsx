@@ -2,41 +2,42 @@
 
 import { useState } from "react";
 import type { ConceptGraphData } from "@/lib/concepts";
-import CategoryChart from "./CategoryChart";
+import DisciplineChart from "./CategoryChart";
 import ConceptNetwork from "./ConceptNetwork";
 import BookList from "./BookList";
 
-type CategoryData = { category: string; count: number };
+type DisciplineData = { discipline: string; count: number };
 type PublicBook = {
   title: string;
   author: string | null;
   category: string | null;
+  discipline: string | null;
   readYear: number;
   pageCount: number;
 };
 
 type Props = {
-  categoryData: CategoryData[];
+  disciplineData: DisciplineData[];
   graphData: ConceptGraphData;
   bookList: PublicBook[];
 };
 
 export default function PublicPageClient({
-  categoryData,
+  disciplineData,
   graphData,
   bookList,
 }: Props) {
   const [filterYear, setFilterYear] = useState<number | null>(null);
-  const [filterCategory, setFilterCategory] = useState<string | null>(null);
+  const [filterDiscipline, setFilterDiscipline] = useState<string | null>(null);
 
   return (
     <>
-      {/* Category Chart */}
+      {/* Discipline Chart */}
       <section className="mb-12">
-        <CategoryChart
-          data={categoryData}
-          selectedCategory={filterCategory}
-          onCategoryClick={setFilterCategory}
+        <DisciplineChart
+          data={disciplineData}
+          selectedDiscipline={filterDiscipline}
+          onDisciplineClick={setFilterDiscipline}
         />
       </section>
 
@@ -50,9 +51,9 @@ export default function PublicPageClient({
         <BookList
           books={bookList}
           filterYear={filterYear}
-          filterCategory={filterCategory}
+          filterDiscipline={filterDiscipline}
           onYearChange={setFilterYear}
-          onCategoryChange={setFilterCategory}
+          onDisciplineChange={setFilterDiscipline}
         />
       </section>
     </>
