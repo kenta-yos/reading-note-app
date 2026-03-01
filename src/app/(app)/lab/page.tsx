@@ -4,14 +4,21 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import InsightsSection from "@/components/lab/InsightsSection";
 import RecommendSection from "@/components/lab/RecommendSection";
+import SearchSection from "@/components/lab/SearchSection";
 
 export default async function LabPage() {
-  const [insights, sessions] = await Promise.all([
+  const [insights, autoSessions, searchSessions] = await Promise.all([
     prisma.readingInsight.findMany({
       orderBy: { createdAt: "desc" },
       take: 10,
     }),
     prisma.recommendSession.findMany({
+      where: { searchType: "auto" },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    }),
+    prisma.recommendSession.findMany({
+      where: { searchType: "search" },
       orderBy: { createdAt: "desc" },
       take: 10,
     }),
@@ -32,22 +39,29 @@ export default async function LabPage() {
     createdAt: i.createdAt.toISOString(),
   }));
 
-  const recommendHistory = sessions.map((s) => ({
+  type Rec = {
+    type: "book" | "paper";
+    title: string;
+    titleJa?: string;
+    author: string;
+    publisher?: string;
+    year: string;
+    isbn?: string;
+    url?: string;
+    openAccessPdfUrl?: string;
+    reason: string;
+    reasonJa?: string;
+  };
+
+  const recommendHistory = autoSessions.map((s) => ({
     id: s.id,
-    recommendations: s.recommendations as {
-      type: "book" | "paper";
-      title: string;
-      titleJa?: string;
-      author: string;
-      publisher?: string;
-      year: string;
-      isbn?: string;
-      url?: string;
-      openAccessPdfUrl?: string;
-      reason: string;
-      reasonJa?: string;
-    }[],
-    searchType: s.searchType,
+    recommendations: s.recommendations as Rec[],
+    createdAt: s.createdAt.toISOString(),
+  }));
+
+  const searchHistory = searchSessions.map((s) => ({
+    id: s.id,
+    recommendations: s.recommendations as Rec[],
     userQuery: s.userQuery ?? undefined,
     createdAt: s.createdAt.toISOString(),
   }));
@@ -74,8 +88,9 @@ export default async function LabPage() {
       </div>
 
       <div className="space-y-6 lg:space-y-8">
-        <InsightsSection history={insightHistory} />
+        <SearchSection history={searchHistory} />
         <RecommendSection history={recommendHistory} />
+        <InsightsSection history={insightHistory} />
       </div>
     </div>
   );

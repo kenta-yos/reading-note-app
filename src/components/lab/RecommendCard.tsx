@@ -23,8 +23,8 @@ export default function RecommendCard({ rec }: { rec: Recommendation }) {
   const displayReason = rec.reasonJa || rec.reason;
   const isBook = rec.type === "book";
 
-  // 版元ドットコムリンク (ISBN検索)
-  const hanmotoUrl = rec.isbn
+  // 書籍リンク: ISBN → 版元ドットコム、なければ検索
+  const bookUrl = rec.isbn
     ? `https://www.hanmoto.com/bd/isbn/${rec.isbn}`
     : null;
 
@@ -53,7 +53,27 @@ export default function RecommendCard({ rec }: { rec: Recommendation }) {
           isBook ? "text-amber-900" : "text-sky-900"
         }`}
       >
-        {displayTitle}
+        {isBook && bookUrl ? (
+          <a
+            href={bookUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:underline"
+          >
+            {displayTitle}
+          </a>
+        ) : !isBook && rec.url ? (
+          <a
+            href={rec.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:underline"
+          >
+            {displayTitle}
+          </a>
+        ) : (
+          displayTitle
+        )}
       </p>
 
       {rec.titleJa && rec.title !== rec.titleJa && (
@@ -72,26 +92,6 @@ export default function RecommendCard({ rec }: { rec: Recommendation }) {
 
       {/* Links */}
       <div className="flex flex-wrap items-center gap-2">
-        {isBook && hanmotoUrl && (
-          <a
-            href={hanmotoUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-amber-700 hover:text-amber-800 hover:underline"
-          >
-            版元ドットコム
-          </a>
-        )}
-        {!isBook && rec.url && (
-          <a
-            href={rec.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-sky-700 hover:text-sky-800 hover:underline"
-          >
-            Semantic Scholar
-          </a>
-        )}
         {!isBook && rec.openAccessPdfUrl && (
           <button
             onClick={() => setShowTranslation(!showTranslation)}
