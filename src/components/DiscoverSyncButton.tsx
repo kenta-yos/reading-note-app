@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Spinner from "@/components/Spinner";
-import { syncNewBooks } from "@/app/discover/actions";
+import { syncNewBooks } from "@/app/(app)/discover/actions";
 
 export default function DiscoverSyncButton() {
   const router = useRouter();

@@ -12,6 +12,8 @@ type PublicBook = {
 
 type SortKey = "readYear" | "title" | "author";
 
+const PAGE_SIZE = 10;
+
 type Props = {
   books: PublicBook[];
   filterYear: number | null;
@@ -30,6 +32,7 @@ export default function BookList({
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("readYear");
   const [sortAsc, setSortAsc] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const years = useMemo(
     () => [...new Set(books.map((b) => b.readYear))].sort((a, b) => b - a),
@@ -61,6 +64,17 @@ export default function BookList({
       return (a.author ?? "").localeCompare(b.author ?? "") * dir;
     });
   }, [books, filterYear, filterCategory, search, sortKey, sortAsc]);
+
+  // Reset visible count when filters change
+  const filteredKey = `${filterYear}-${filterCategory}-${search}-${sortKey}-${sortAsc}`;
+  const [prevKey, setPrevKey] = useState(filteredKey);
+  if (filteredKey !== prevKey) {
+    setPrevKey(filteredKey);
+    setVisibleCount(PAGE_SIZE);
+  }
+
+  const visible = filtered.slice(0, visibleCount);
+  const hasMore = visibleCount < filtered.length;
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -155,7 +169,7 @@ export default function BookList({
             </tr>
           </thead>
           <tbody>
-            {filtered.map((b, i) => (
+            {visible.map((b, i) => (
               <tr
                 key={`${b.title}-${i}`}
                 className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors"
@@ -185,7 +199,7 @@ export default function BookList({
 
       {/* Mobile card view */}
       <div className="md:hidden space-y-2">
-        {filtered.map((b, i) => (
+        {visible.map((b, i) => (
           <div
             key={`${b.title}-${i}`}
             className="border border-slate-100 rounded-lg p-3"
@@ -213,6 +227,18 @@ export default function BookList({
         <p className="text-center text-sm text-slate-400 py-8">
           該当する書籍が見つかりません
         </p>
+      )}
+
+      {/* Load more */}
+      {hasMore && (
+        <div className="text-center mt-4">
+          <button
+            onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+            className="px-5 py-2 text-sm text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+          >
+            もっと見る（残り {filtered.length - visibleCount} 冊）
+          </button>
+        </div>
       )}
     </div>
   );

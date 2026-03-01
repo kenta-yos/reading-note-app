@@ -11,6 +11,7 @@ type StatCardsProps = {
 
 function useCountUp(target: number, duration = 1500) {
   const [value, setValue] = useState(0);
+  const started = useRef(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -19,13 +20,13 @@ function useCountUp(target: number, duration = 1500) {
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (!entry.isIntersecting) return;
+        if (!entry.isIntersecting || started.current) return;
+        started.current = true;
         observer.disconnect();
 
         const start = performance.now();
         const step = (now: number) => {
           const t = Math.min((now - start) / duration, 1);
-          // ease-out quad
           const eased = 1 - (1 - t) * (1 - t);
           setValue(Math.round(eased * target));
           if (t < 1) requestAnimationFrame(step);
@@ -53,38 +54,26 @@ export default function StatCards({
   return (
     <div
       ref={books.ref}
-      className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto"
+      className="flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-slate-500 text-sm"
     >
-      <div className="bg-white rounded-xl border border-slate-200 p-5 text-center shadow-sm">
-        <p className="text-sm text-slate-500 mb-1">読了冊数</p>
-        <p className="text-3xl lg:text-4xl font-bold text-slate-800 tabular-nums">
+      <span>
+        {minYear} 〜 {maxYear}年
+      </span>
+      <span className="text-slate-300 hidden sm:inline">|</span>
+      <span ref={pages.ref}>
+        <span className="font-semibold text-slate-700 tabular-nums">
           {books.value.toLocaleString()}
-          <span className="text-base font-normal text-slate-400 ml-1">冊</span>
-        </p>
-      </div>
-
-      <div className="bg-white rounded-xl border border-slate-200 p-5 text-center shadow-sm">
-        <p className="text-sm text-slate-500 mb-1">読書期間</p>
-        <p className="text-3xl lg:text-4xl font-bold text-slate-800 tabular-nums">
-          {minYear}
-          <span className="text-base font-normal text-slate-400 mx-1">〜</span>
-          {maxYear}
-          <span className="text-base font-normal text-slate-400 ml-1">年</span>
-        </p>
-      </div>
-
-      <div
-        ref={pages.ref}
-        className="bg-white rounded-xl border border-slate-200 p-5 text-center shadow-sm"
-      >
-        <p className="text-sm text-slate-500 mb-1">総ページ数</p>
-        <p className="text-3xl lg:text-4xl font-bold text-slate-800 tabular-nums">
-          約{pages.value.toLocaleString()}
-          <span className="text-base font-normal text-slate-400 ml-1">
-            ページ
-          </span>
-        </p>
-      </div>
+        </span>{" "}
+        冊
+      </span>
+      <span className="text-slate-300 hidden sm:inline">|</span>
+      <span>
+        約{" "}
+        <span className="font-semibold text-slate-700 tabular-nums">
+          {pages.value.toLocaleString()}
+        </span>{" "}
+        ページ
+      </span>
     </div>
   );
 }
