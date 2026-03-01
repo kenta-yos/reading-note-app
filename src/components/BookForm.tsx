@@ -220,7 +220,7 @@ export default function BookForm({ initialData = {}, mode = "create", returnStat
       const returnTo = mode === "edit"
         ? `/books/${initialData.id}`
         : `/books?status=${returnStatus ?? status}`;
-      router.push(returnTo);
+      router.replace(returnTo);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "エラーが発生しました");
