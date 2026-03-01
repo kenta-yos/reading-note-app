@@ -48,10 +48,21 @@ export default function DisciplineChart({ data }: Props) {
               />
               <span
                 key={`name-${d.discipline}`}
-                className="text-xs text-slate-600 text-right"
+                className="text-xs text-slate-600"
                 style={{ maxWidth: "10em" }}
               >
-                {d.discipline}
+                {d.discipline.includes("・")
+                  ? d.discipline.split("・").map((part, j, arr) => (
+                      <span key={j}>
+                        {part}
+                        {j < arr.length - 1 && (
+                          <>
+                            ・<wbr />
+                          </>
+                        )}
+                      </span>
+                    ))
+                  : d.discipline}
               </span>
               <div
                 key={`bar-${d.discipline}`}
