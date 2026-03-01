@@ -37,9 +37,10 @@ type BookFormProps = {
     readAt?: string;
   };
   mode?: "create" | "edit";
+  returnStatus?: BookStatus;
 };
 
-export default function BookForm({ initialData = {}, mode = "create" }: BookFormProps) {
+export default function BookForm({ initialData = {}, mode = "create", returnStatus }: BookFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -211,7 +212,10 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
 
       if (!res.ok) throw new Error("保存に失敗しました");
 
-      router.push(mode === "edit" ? `/books/${initialData.id}` : "/books");
+      const returnTo = mode === "edit"
+        ? `/books/${initialData.id}`
+        : `/books?status=${returnStatus ?? status}`;
+      router.push(returnTo);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "エラーが発生しました");

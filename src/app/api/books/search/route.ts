@@ -45,9 +45,43 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "q パラメータが必要です（2文字以上）" }, { status: 400 });
   }
 
+  // ISBN検索の場合、Google Booksで見つからなければOpenBDでタイトルを取得して再検索
+  let searchQuery = q;
+  const isbnMatch = q.match(/^isbn[:\s]*(\d{10,13})$/i);
+
+  if (isbnMatch) {
+    const isbn = isbnMatch[1];
+    // まずGoogle BooksでISBN検索
+    const isbnUrl = new URL("https://www.googleapis.com/books/v1/volumes");
+    isbnUrl.searchParams.set("q", `isbn:${isbn}`);
+    isbnUrl.searchParams.set("maxResults", "5");
+    isbnUrl.searchParams.set("printType", "books");
+    if (process.env.GOOGLE_BOOKS_API_KEY) {
+      isbnUrl.searchParams.set("key", process.env.GOOGLE_BOOKS_API_KEY);
+    }
+    const isbnRes = await fetch(isbnUrl.toString());
+    const isbnData = isbnRes.ok ? await isbnRes.json() : { items: [] };
+
+    if (!isbnData.items || isbnData.items.length === 0) {
+      // Google Booksに無い場合、OpenBDからタイトルを取得してタイトル検索にフォールバック
+      try {
+        const obdRes = await fetch(`https://api.openbd.jp/v1/get?isbn=${isbn}`);
+        if (obdRes.ok) {
+          const obdData = await obdRes.json();
+          const title = obdData?.[0]?.summary?.title;
+          if (title) {
+            searchQuery = title;
+          }
+        }
+      } catch {
+        // OpenBDも失敗した場合はISBNのまま検索
+      }
+    }
+  }
+
   // Google Books API（日本語書籍を優先取得するため多めに取得してフィルタ）
   const url = new URL("https://www.googleapis.com/books/v1/volumes");
-  url.searchParams.set("q", q);
+  url.searchParams.set("q", searchQuery);
   url.searchParams.set("maxResults", "20");
   url.searchParams.set("printType", "books");
   if (process.env.GOOGLE_BOOKS_API_KEY) {

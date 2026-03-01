@@ -104,7 +104,7 @@ export default async function BooksPage({
             🗂️ 分類
           </ActionLink>
           <ActionLink
-            href="/books/new"
+            href={`/books/new${params.status ? `?status=${params.status}` : ""}`}
             className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold transition-colors shadow-sm min-h-[40px] min-w-[96px]"
             spinnerClassName="w-4 h-4 text-white"
           >

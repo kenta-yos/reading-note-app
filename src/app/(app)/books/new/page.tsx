@@ -1,10 +1,12 @@
 import BookForm from "@/components/BookForm";
+import { BOOK_STATUSES, BookStatus } from "@/lib/types";
 
 type SearchParams = {
   title?: string;
   author?: string;
   publisher?: string;
   publishedYear?: string;
+  status?: string;
 };
 
 export default async function NewBookPage({
@@ -14,14 +16,19 @@ export default async function NewBookPage({
 }) {
   const params = await searchParams;
 
+  const validStatus = params.status && params.status in BOOK_STATUSES
+    ? (params.status as BookStatus)
+    : undefined;
+
   const initialData = {
     ...(params.title ? { title: params.title } : {}),
     ...(params.author ? { author: params.author } : {}),
     ...(params.publisher ? { publisher: params.publisher } : {}),
     ...(params.publishedYear ? { publishedYear: Number(params.publishedYear) } : {}),
+    ...(validStatus ? { status: validStatus } : {}),
   };
 
-  const hasPreFill = Object.keys(initialData).length > 0;
+  const hasPreFill = !!(params.title || params.author || params.publisher);
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -32,7 +39,7 @@ export default async function NewBookPage({
         </p>
       </div>
       <div className="bg-white border border-slate-200 rounded-xl p-4 lg:p-6 shadow-sm">
-        <BookForm mode="create" initialData={initialData} />
+        <BookForm mode="create" initialData={initialData} returnStatus={validStatus} />
       </div>
     </div>
   );
