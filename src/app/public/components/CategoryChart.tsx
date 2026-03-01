@@ -27,36 +27,48 @@ export default function DisciplineChart({ data }: Props) {
       <p className="text-xs text-slate-400 mb-3">
         読了書籍の学問分野別冊数
       </p>
-      <div className="space-y-1.5">
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "auto auto 1fr auto",
+          alignItems: "center",
+          rowGap: 6,
+          columnGap: 8,
+        }}
+      >
         {sorted.map((d, i) => {
           const pct = (d.count / maxCount) * 100;
+          const color = COLORS[i % COLORS.length];
           return (
-            <div
-              key={d.discipline}
-              className="flex items-center gap-2 px-2 py-1"
-            >
+            <>
               <span
-                className="w-2 h-2 rounded-sm shrink-0"
-                style={{
-                  backgroundColor: COLORS[i % COLORS.length],
-                }}
+                key={`dot-${d.discipline}`}
+                className="w-2 h-2 rounded-sm"
+                style={{ backgroundColor: color }}
               />
-              <span className="text-xs text-slate-600 whitespace-nowrap shrink-0">
+              <span
+                key={`name-${d.discipline}`}
+                className="text-xs text-slate-600 text-right"
+                style={{ maxWidth: "10em" }}
+              >
                 {d.discipline}
               </span>
-              <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
+              <div
+                key={`bar-${d.discipline}`}
+                className="h-3 bg-slate-100 rounded-full overflow-hidden"
+              >
                 <div
                   className="h-full rounded-full"
-                  style={{
-                    width: `${pct}%`,
-                    backgroundColor: COLORS[i % COLORS.length],
-                  }}
+                  style={{ width: `${pct}%`, backgroundColor: color }}
                 />
               </div>
-              <span className="text-xs text-slate-400 tabular-nums w-8 text-right shrink-0">
+              <span
+                key={`count-${d.discipline}`}
+                className="text-xs text-slate-400 tabular-nums text-right"
+              >
                 {d.count}
               </span>
-            </div>
+            </>
           );
         })}
       </div>
