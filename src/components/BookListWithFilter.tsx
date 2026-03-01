@@ -43,6 +43,7 @@ type Props = {
   allPublishers?: string[]; // 全出版社リスト（色の一意割り当て用）
   bookmarked?: Set<string>;
   onToggleBookmark?: (book: NDLBook) => void;
+  newIsbns?: Set<string>;
 };
 
 function BookmarkButton({
@@ -110,12 +111,14 @@ function BookRow({
   publisherColor,
   userDisciplines,
   isBookmarked,
+  isNew,
   onToggle,
 }: {
   book: NDLBook;
   publisherColor: string;
   userDisciplines: string[];
   isBookmarked: boolean;
+  isNew: boolean;
   onToggle: (() => void) | null;
 }) {
   const [pending, setPending] = useState(false);
@@ -135,6 +138,11 @@ function BookRow({
       <div className="flex-1 min-w-0">
         {/* 書名 + 出版社タグ + カテゴリタグ（インライン） */}
         <p className="text-sm leading-snug mb-0.5">
+          {isNew && (
+            <span className="inline-block align-middle mr-1 text-[10px] font-bold bg-rose-500 text-white px-1.5 py-0.5 rounded">
+              NEW
+            </span>
+          )}
           {url ? (
             <a
               href={url}
@@ -197,6 +205,7 @@ export default function BookListWithFilter({
   allPublishers = [],
   bookmarked = new Set(),
   onToggleBookmark,
+  newIsbns = new Set(),
 }: Props) {
   const [selectedPublisher, setSelectedPublisher] = useState<string | null>(null);
   const [publisherSearch, setPublisherSearch] = useState("");
@@ -348,6 +357,7 @@ export default function BookListWithFilter({
                 publisherColor={publisherColor}
                 userDisciplines={userDisciplines}
                 isBookmarked={cleanIsbn ? bookmarked.has(cleanIsbn) : false}
+                isNew={cleanIsbn ? newIsbns.has(cleanIsbn) : false}
                 onToggle={onToggleBookmark ? () => onToggleBookmark(b) : null}
               />
             );

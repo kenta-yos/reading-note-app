@@ -23,8 +23,11 @@ export default function VocabRefreshButton({ pendingCount, pendingBooks }: Props
 
       while (remaining > 0) {
         const res = await fetch("/api/vocab-refresh", { method: "POST" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
+        if (data.creditError) {
+          throw new Error(data.error || "Claude APIのクレジットが不足しています");
+        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         totalProcessed += data.processed ?? 0;
         remaining = data.remaining ?? 0;
 

@@ -29,11 +29,11 @@ export async function toggleBookmark(book: NDLBook): Promise<void> {
   revalidatePath("/discover");
 }
 
-export async function syncNewBooks(): Promise<{ added: number }> {
+export async function syncNewBooks(): Promise<{ added: number; addedIsbns: string[] }> {
   const publishers = await prisma.watchPublisher.findMany({ orderBy: { name: "asc" } });
   const publisherNames = publishers.map((p) => p.name);
 
-  if (publisherNames.length === 0) return { added: 0 };
+  if (publisherNames.length === 0) return { added: 0, addedIsbns: [] };
 
   const [recentRaw, upcomingRaw] = await Promise.all([
     fetchRecentBooks(publisherNames),
@@ -68,7 +68,7 @@ export async function syncNewBooks(): Promise<{ added: number }> {
 
   if (newBooks.length === 0) {
     revalidatePath("/discover");
-    return { added: 0 };
+    return { added: 0, addedIsbns: [] };
   }
 
   const result = await prisma.discoveredBook.createMany({
@@ -86,6 +86,8 @@ export async function syncNewBooks(): Promise<{ added: number }> {
     skipDuplicates: true,
   });
 
+  const addedIsbns = newBooks.map((b) => b.isbn!.replace(/-/g, ""));
+
   revalidatePath("/discover");
-  return { added: result.count };
+  return { added: result.count, addedIsbns };
 }

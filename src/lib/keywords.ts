@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
 import { extractAndStoreKeywords, API_ERROR_SENTINEL } from "./keyword-extractor";
+import { isCreditOrRateLimitError } from "./anthropic-error";
 
 export type KeywordByYear = {
   year: number;
@@ -12,6 +13,7 @@ export type KeywordHeatmapData = {
   keywords: string[];
   matrix: Record<string, Record<number, number>>;
   hasApiError: boolean;
+  hasCreditError: boolean;
 };
 
 const TOP_KEYWORDS = 20;
@@ -28,9 +30,17 @@ export async function getKeywordHeatmap(): Promise<KeywordHeatmapData> {
   });
 
   let hasApiError = false;
+  let hasCreditError = false;
   if (unprocessed.length > 0) {
-    const result = await extractAndStoreKeywords(unprocessed);
-    if (result.hasError) hasApiError = true;
+    try {
+      const result = await extractAndStoreKeywords(unprocessed);
+      if (result.hasError) hasApiError = true;
+    } catch (e) {
+      if (isCreditOrRateLimitError(e)) {
+        hasCreditError = true;
+      }
+      hasApiError = true;
+    }
   }
 
   // 前回失敗のまま残っているセンチネルがあればエラー表示を維持
@@ -80,5 +90,5 @@ export async function getKeywordHeatmap(): Promise<KeywordHeatmapData> {
     }
   }
 
-  return { years, keywords, matrix, hasApiError };
+  return { years, keywords, matrix, hasApiError, hasCreditError };
 }

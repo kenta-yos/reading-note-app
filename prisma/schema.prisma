@@ -66,6 +66,19 @@ model DiscoverBookmark {
   createdAt  DateTime @default(now())
 }
 
+model ReadingInsight {
+  id        String   @id @default(cuid())
+  analysis  Json     // { discoveries: [...], evolution: [...] }
+  bookCount Int
+  createdAt DateTime @default(now())
+}
+
+model RecommendSession {
+  id              String   @id @default(cuid())
+  recommendations Json     // Recommendation[]
+  createdAt       DateTime @default(now())
+}
+
 model DiscoveredBook {
   id          String   @id @default(cuid())
   isbn        String   @unique

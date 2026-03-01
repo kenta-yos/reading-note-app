@@ -11,6 +11,7 @@ import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/prisma";
 import { API_ERROR_SENTINEL, NO_CONCEPTS_SENTINEL } from "@/lib/keyword-extractor";
+import { isCreditOrRateLimitError, getAnthropicErrorMessage } from "@/lib/anthropic-error";
 import vocabulary from "@/lib/concept-vocabulary.json";
 
 const VOCAB_STR = (vocabulary as string[]).join("、");
@@ -104,7 +105,13 @@ export async function POST() {
         });
         processed++;
       }
-    } catch {
+    } catch (e) {
+      if (isCreditOrRateLimitError(e)) {
+        return NextResponse.json(
+          { error: getAnthropicErrorMessage(e), creditError: true },
+          { status: 402 }
+        );
+      }
       errors++;
       await prisma.bookKeyword.upsert({
         where: {
