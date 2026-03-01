@@ -15,7 +15,6 @@
     "@prisma/client": "^7.4.0",
     "@types/d3": "^7.4.3",
     "d3": "^7.9.0",
-    "html5-qrcode": "^2.3.8",
     "kuromoji": "^0.1.2",
     "next": "16.1.6",
     "pdf-parse": "^2.4.5",
