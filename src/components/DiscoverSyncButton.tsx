@@ -5,7 +5,11 @@ import { useRouter } from "next/navigation";
 import Spinner from "@/components/Spinner";
 import { syncNewBooks } from "@/app/(app)/discover/actions";
 
-export default function DiscoverSyncButton() {
+export default function DiscoverSyncButton({
+  onSynced,
+}: {
+  onSynced?: (addedIsbns: string[]) => void;
+} = {}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<{ added: number } | null>(null);
@@ -15,6 +19,9 @@ export default function DiscoverSyncButton() {
     startTransition(async () => {
       const r = await syncNewBooks();
       setResult(r);
+      if (r.addedIsbns.length > 0) {
+        onSynced?.(r.addedIsbns);
+      }
       router.refresh();
     });
   }

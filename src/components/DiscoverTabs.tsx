@@ -15,6 +15,7 @@ type Props = {
   userDisciplines: string[];
   allPublishers: string[];
   toggleBookmark: (book: NDLBook) => Promise<void>;
+  newIsbns?: Set<string>;
 };
 
 export default function DiscoverTabs({
@@ -25,6 +26,7 @@ export default function DiscoverTabs({
   userDisciplines,
   allPublishers,
   toggleBookmark,
+  newIsbns = new Set(),
 }: Props) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("recent");
@@ -120,6 +122,7 @@ export default function DiscoverTabs({
         allPublishers={allPublishers}
         bookmarked={optimisticBookmarked}
         onToggleBookmark={handleToggle}
+        newIsbns={newIsbns}
       />
     </div>
   );

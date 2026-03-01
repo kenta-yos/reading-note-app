@@ -3,8 +3,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import type { NDLBook } from "@/lib/ndl";
-import DiscoverTabs from "@/components/DiscoverTabs";
-import DiscoverSyncButton from "@/components/DiscoverSyncButton";
+import DiscoverContent from "@/components/DiscoverContent";
 import { toggleBookmark } from "./actions";
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -147,10 +146,6 @@ export default async function DiscoverPage() {
             出版社を管理
           </Link>
         </div>
-        <div className="flex items-center justify-between mt-1.5">
-          <p className="text-slate-500 text-sm">最新刊・近刊</p>
-          <DiscoverSyncButton />
-        </div>
       </div>
 
       {publisherNames.length === 0 && (
@@ -168,17 +163,15 @@ export default async function DiscoverPage() {
         </div>
       )}
 
-      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-        <DiscoverTabs
-          recentBooks={recentBooks}
-          upcomingBooks={upcomingBooks}
-          bookmarkedBooks={bookmarkedBooks}
-          bookmarkedIsbns={bookmarkedIsbns}
-          userDisciplines={userDisciplines}
-          allPublishers={allPublishers}
-          toggleBookmark={toggleBookmark}
-        />
-      </div>
+      <DiscoverContent
+        recentBooks={recentBooks}
+        upcomingBooks={upcomingBooks}
+        bookmarkedBooks={bookmarkedBooks}
+        bookmarkedIsbns={bookmarkedIsbns}
+        userDisciplines={userDisciplines}
+        allPublishers={allPublishers}
+        toggleBookmark={toggleBookmark}
+      />
     </div>
   );
 }

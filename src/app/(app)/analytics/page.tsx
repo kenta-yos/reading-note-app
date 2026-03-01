@@ -5,6 +5,7 @@ import { getKeywordHeatmap } from "@/lib/keywords";
 import { getDisciplineTotals, getVocabHealth } from "@/lib/stats";
 import { prisma } from "@/lib/prisma";
 import { API_ERROR_SENTINEL } from "@/lib/keyword-extractor";
+import Link from "next/link";
 import ConceptForceGraph from "@/components/charts/ConceptForceGraph";
 import ConceptBumpChart from "@/components/charts/ConceptBumpChart";
 import KnowledgeRadarChart from "@/components/charts/KnowledgeRadarChart";
@@ -78,11 +79,23 @@ export default async function AnalyticsPage() {
 
   return (
     <div className="max-w-5xl mx-auto">
+      {/* クレジット不足エラー */}
+      {keywordData.hasCreditError && (
+        <div className="mb-5 bg-red-50 border border-red-200 rounded-xl px-5 py-4 text-sm text-red-800">
+          <p className="font-semibold mb-1">
+            Claude APIのクレジットが不足しています
+          </p>
+          <p className="text-red-700 text-xs leading-relaxed">
+            Anthropicコンソールでクレジット残高を確認してください。クレジットを追加すると、概念抽出や読書ラボの機能が利用できるようになります。
+          </p>
+        </div>
+      )}
+
       {/* APIエラーで概念抽出に失敗した本がある場合のみ表示（0概念で処理済みの本は含まない） */}
-      {keywordData.hasApiError && pendingBooks.length > 0 && (
+      {keywordData.hasApiError && !keywordData.hasCreditError && pendingBooks.length > 0 && (
         <div className="mb-5 bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 text-sm text-amber-800">
           <p className="font-semibold mb-1">
-            ⚠️ APIエラーにより概念抽出に失敗している本があります（{pendingCount}冊）
+            APIエラーにより概念抽出に失敗している本があります（{pendingCount}冊）
           </p>
           <p className="text-amber-700 text-xs leading-relaxed mb-3">
             クレジット残高を確認後、下のボタンで再試行してください。
@@ -176,6 +189,26 @@ export default async function AnalyticsPage() {
           }))}
         />
       </div>
+
+      {/* ── 読書ラボへのリンク ── */}
+      <Link
+        href="/lab"
+        className="block bg-gradient-to-r from-amber-50 to-cyan-50 border border-slate-200 rounded-xl p-5 shadow-sm mb-6 lg:mb-8 hover:shadow-md transition-shadow group"
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+              読書ラボ
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              AIが読書履歴を横断分析し、発見やおすすめの本・論文を提案する実験機能
+            </p>
+          </div>
+          <span className="text-slate-300 group-hover:text-slate-500 transition-colors text-lg">
+            →
+          </span>
+        </div>
+      </Link>
     </div>
   );
 }

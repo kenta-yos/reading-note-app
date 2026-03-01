@@ -6,6 +6,7 @@
  */
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "./prisma";
+import { isCreditOrRateLimitError } from "./anthropic-error";
 import vocabulary from "./concept-vocabulary.json";
 
 // API失敗時にDBに保存するセンチネル値（無限ループ防止用）
@@ -99,8 +100,10 @@ export async function extractAndStoreKeywords(
           update: { count: 0 },
         });
       }
-    } catch {
-      // 失敗: センチネルを保存して次回再試行できるようにする
+    } catch (e) {
+      // クレジット不足は即座に上位へ伝播（ループ継続しない）
+      if (isCreditOrRateLimitError(e)) throw e;
+      // その他のエラー: センチネルを保存して次回再試行できるようにする
       hasError = true;
       await prisma.bookKeyword.upsert({
         where: { bookId_keyword: { bookId: book.id, keyword: API_ERROR_SENTINEL } },
