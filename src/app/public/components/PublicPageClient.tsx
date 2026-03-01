@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import type { ConceptGraphData } from "@/lib/concepts";
 import DisciplineChart from "./CategoryChart";
 import ConceptNetwork from "./ConceptNetwork";
@@ -27,18 +26,11 @@ export default function PublicPageClient({
   graphData,
   bookList,
 }: Props) {
-  const [filterYear, setFilterYear] = useState<number | null>(null);
-  const [filterDiscipline, setFilterDiscipline] = useState<string | null>(null);
-
   return (
     <>
       {/* Discipline Chart */}
       <section className="mb-12">
-        <DisciplineChart
-          data={disciplineData}
-          selectedDiscipline={filterDiscipline}
-          onDisciplineClick={setFilterDiscipline}
-        />
+        <DisciplineChart data={disciplineData} />
       </section>
 
       {/* Concept Network */}
@@ -48,13 +40,7 @@ export default function PublicPageClient({
 
       {/* Book List */}
       <section id="book-list">
-        <BookList
-          books={bookList}
-          filterYear={filterYear}
-          filterDiscipline={filterDiscipline}
-          onYearChange={setFilterYear}
-          onDisciplineChange={setFilterDiscipline}
-        />
+        <BookList books={bookList} />
       </section>
     </>
   );

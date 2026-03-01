@@ -4,7 +4,7 @@ import PublicHeader from "./components/PublicHeader";
 import StatCards from "./components/StatCards";
 import PublicPageClient from "./components/PublicPageClient";
 
-export const revalidate = 3600; // ISR: 1 hour
+export const dynamic = "force-dynamic";
 
 export default async function PublicPage() {
   // Fetch all read books - explicitly exclude notes and rating

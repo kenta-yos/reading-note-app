@@ -11,15 +11,9 @@ type DisciplineData = { discipline: string; count: number };
 
 type Props = {
   data: DisciplineData[];
-  selectedDiscipline: string | null;
-  onDisciplineClick: (discipline: string | null) => void;
 };
 
-export default function DisciplineChart({
-  data,
-  selectedDiscipline,
-  onDisciplineClick,
-}: Props) {
+export default function DisciplineChart({ data }: Props) {
   if (!data.length) return null;
 
   const sorted = [...data].sort((a, b) => b.count - a.count);
@@ -31,21 +25,15 @@ export default function DisciplineChart({
         学問分野の分布
       </h2>
       <p className="text-xs text-slate-400 mb-3">
-        クリックで本リストを絞り込み
+        読了書籍の学問分野別冊数
       </p>
       <div className="space-y-1.5">
         {sorted.map((d, i) => {
-          const isSelected = selectedDiscipline === d.discipline;
           const pct = (d.count / maxCount) * 100;
           return (
-            <button
+            <div
               key={d.discipline}
-              onClick={() =>
-                onDisciplineClick(isSelected ? null : d.discipline)
-              }
-              className={`w-full flex items-center gap-2 px-2 py-1 rounded-md text-left transition-colors hover:bg-slate-50 ${
-                isSelected ? "bg-slate-100" : ""
-              }`}
+              className="flex items-center gap-2 px-2 py-1"
             >
               <span
                 className="w-2 h-2 rounded-sm shrink-0"
@@ -58,19 +46,17 @@ export default function DisciplineChart({
               </span>
               <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
                 <div
-                  className="h-full rounded-full transition-all"
+                  className="h-full rounded-full"
                   style={{
                     width: `${pct}%`,
-                    backgroundColor: isSelected
-                      ? "#1a5276"
-                      : COLORS[i % COLORS.length],
+                    backgroundColor: COLORS[i % COLORS.length],
                   }}
                 />
               </div>
               <span className="text-xs text-slate-400 tabular-nums w-8 text-right shrink-0">
                 {d.count}
               </span>
-            </button>
+            </div>
           );
         })}
       </div>
