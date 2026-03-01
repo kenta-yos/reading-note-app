@@ -1,39 +1,5 @@
 import { NextResponse } from "next/server";
 
-const NDL_SRU = "https://ndlsearch.ndl.go.jp/api/sru";
-
-function extractYear(issued: string): number | null {
-  const match = issued.match(/(\d{4})/);
-  return match ? parseInt(match[1]) : null;
-}
-
-/** XML タグの内容を取得（内部タグを除去） */
-function getXmlText(xml: string, tag: string): string {
-  const re = new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${tag}>`, "i");
-  const m = xml.match(re);
-  return m ? m[1].replace(/<[^>]+>/g, "").trim() : "";
-}
-
-/** XML タグの内容を全件取得 */
-function getAllXmlText(xml: string, tag: string): string[] {
-  const re = new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${tag}>`, "gi");
-  const results: string[] = [];
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(xml)) !== null) {
-    const text = m[1].replace(/<[^>]+>/g, "").trim();
-    if (text) results.push(text);
-  }
-  return results;
-}
-
-/** "350p" "vi, 350p" "350ページ" などからページ数を抽出 */
-function parsePages(extent: string): number | null {
-  const m = extent.match(/(\d+)\s*[pPページ]/);
-  if (!m) return null;
-  const n = parseInt(m[1], 10);
-  return !isNaN(n) && n > 0 ? n : null;
-}
-
 type Candidate = {
   title: string;
   author: string;
@@ -41,81 +7,84 @@ type Candidate = {
   publishedYear: number | null;
   pages: number | null;
   description: string | null;
+  thumbnail: string | null;
 };
+
+type GoogleBooksVolume = {
+  volumeInfo?: {
+    title?: string;
+    authors?: string[];
+    publisher?: string;
+    publishedDate?: string;
+    pageCount?: number;
+    description?: string;
+    industryIdentifiers?: { type: string; identifier: string }[];
+    imageLinks?: { smallThumbnail?: string; thumbnail?: string };
+  };
+};
+
+function extractYear(date: string | undefined): number | null {
+  if (!date) return null;
+  const match = date.match(/(\d{4})/);
+  return match ? parseInt(match[1]) : null;
+}
+
+function extractIsbn(identifiers: { type: string; identifier: string }[] | undefined): string | null {
+  if (!identifiers) return null;
+  const isbn13 = identifiers.find((id) => id.type === "ISBN_13");
+  const isbn10 = identifiers.find((id) => id.type === "ISBN_10");
+  return isbn13?.identifier ?? isbn10?.identifier ?? null;
+}
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const title = searchParams.get("title");
+  const q = searchParams.get("q");
 
-  if (!title) {
-    return NextResponse.json({ error: "title パラメータが必要です" }, { status: 400 });
+  if (!q || q.trim().length < 2) {
+    return NextResponse.json({ error: "q パラメータが必要です（2文字以上）" }, { status: 400 });
   }
 
-  // 国立国会図書館 SRU API（図書のみ、新しい順）
-  const url = new URL(NDL_SRU);
-  url.searchParams.set("operation", "searchRetrieve");
-  url.searchParams.set("recordSchema", "dcndl");
-  url.searchParams.set("maximumRecords", "30");
-  url.searchParams.set("mediatype", "1");
-  url.searchParams.set("sortKeys", "issued,,0");
-  url.searchParams.set("query", `title="${title}"`);
+  // Google Books API（APIキー不要）
+  const url = new URL("https://www.googleapis.com/books/v1/volumes");
+  url.searchParams.set("q", q);
+  url.searchParams.set("maxResults", "10");
+  url.searchParams.set("langRestrict", "ja");
+  url.searchParams.set("printType", "books");
 
   const res = await fetch(url.toString());
   if (!res.ok) {
     return NextResponse.json({ error: "書籍情報の取得に失敗しました" }, { status: 502 });
   }
 
-  const xml = await res.text();
+  const data = await res.json();
+  const items: GoogleBooksVolume[] = data.items ?? [];
 
-  const normalize = (s: string) =>
-    s.normalize("NFKC").toLowerCase().replace(/\s+/g, "");
-  const keyword = normalize(title);
-
+  // ISBN で重複排除しつつ候補を抽出（最大8件）
   const candidates: Candidate[] = [];
   const candidateIsbns: (string | null)[] = [];
+  const seenIsbns = new Set<string>();
 
-  const recordDataRe = /<recordData>([\s\S]*?)<\/recordData>/gi;
-  let m: RegExpExecArray | null;
+  for (const item of items) {
+    if (candidates.length >= 8) break;
+    const vol = item.volumeInfo;
+    if (!vol?.title) continue;
 
-  while ((m = recordDataRe.exec(xml)) !== null && candidates.length < 5) {
-    const chunk = m[1];
+    const isbn = extractIsbn(vol.industryIdentifiers);
+    if (isbn) {
+      if (seenIsbns.has(isbn)) continue;
+      seenIsbns.add(isbn);
+    }
 
-    // 雑誌タイトルレコードを除外
-    const descriptions = getAllXmlText(chunk, "dcterms:description");
-    if (descriptions.some((d) => d === "type : title")) continue;
-
-    const itemTitle =
-      getXmlText(chunk, "dcterms:title") || getXmlText(chunk, "dc:title");
-    if (!itemTitle || !normalize(itemTitle).includes(keyword)) continue;
-
-    // ISBN 必須（ISBNなし = 雑誌・逐次刊行物など）
-    const isbnMatch = chunk.match(
-      /<dcterms:identifier[^>]*rdf:datatype="[^"]*ISBN[^"]*"[^>]*>([^<]+)<\/dcterms:identifier>/i
-    );
-    const isbn = isbnMatch ? isbnMatch[1].trim().replace(/[^0-9]/g, "") : null;
-    if (!isbn) continue;
-
-    const creators = getAllXmlText(chunk, "dc:creator");
-    const author = creators.join("／");
-
-    const publisher =
-      getXmlText(chunk, "dcterms:publisher") || getXmlText(chunk, "dc:publisher");
-
-    const dateRaw =
-      getXmlText(chunk, "dcterms:date") || getXmlText(chunk, "dcterms:issued");
-    const issued = dateRaw.replace(/\./g, "-");
-
-    const extent =
-      getXmlText(chunk, "dcterms:extent") || getXmlText(chunk, "dc:extent");
-    const pages = parsePages(extent);
+    const thumbnail = vol.imageLinks?.thumbnail ?? vol.imageLinks?.smallThumbnail ?? null;
 
     candidates.push({
-      title: itemTitle,
-      author,
-      publisherName: publisher,
-      publishedYear: extractYear(issued),
-      pages,
-      description: null,
+      title: vol.title,
+      author: vol.authors?.join("／") ?? "",
+      publisherName: vol.publisher ?? "",
+      publishedYear: extractYear(vol.publishedDate),
+      pages: vol.pageCount && vol.pageCount > 0 ? vol.pageCount : null,
+      description: vol.description ?? null,
+      thumbnail: thumbnail ? thumbnail.replace(/^http:/, "https:") : null,
     });
     candidateIsbns.push(isbn);
   }
@@ -124,8 +93,8 @@ export async function GET(req: Request) {
     return NextResponse.json({ candidates: [] });
   }
 
-  // 全候補の ISBN で OpenBD をフェッチし、ページ数補完 + 内容紹介取得
-  const validIsbns = candidateIsbns.filter((isbn) => isbn !== null) as string[];
+  // OpenBD 補完: ISBN がある候補について日本語の内容紹介・ページ数を補完
+  const validIsbns = candidateIsbns.filter((isbn): isbn is string => isbn !== null);
 
   if (validIsbns.length > 0) {
     try {
@@ -144,13 +113,11 @@ export async function GET(req: Request) {
           const isbn = entry.summary?.isbn;
           if (!isbn) continue;
 
-          // ページ数
           if (entry.summary?.pages) {
             const p = parseInt(entry.summary.pages, 10);
             if (!isNaN(p) && p > 0) pagesMap[isbn] = p;
           }
 
-          // 内容紹介: TextType "03"(詳細) → "02"(短い)
           const textContents: Array<{ TextType?: string; Text?: string }> =
             entry.onix?.CollateralDetail?.TextContent ?? [];
           const detailed = textContents.find((tc) => tc.TextType === "03");
@@ -171,7 +138,7 @@ export async function GET(req: Request) {
         }
       }
     } catch {
-      // OpenBD 失敗時はページ数・内容紹介なしのまま返す
+      // OpenBD 失敗時はそのまま返す
     }
   }
 

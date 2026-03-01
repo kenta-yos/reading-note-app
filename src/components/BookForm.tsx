@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import Spinner from "./Spinner";
 import { DISCIPLINES } from "@/lib/disciplines";
 
@@ -12,6 +13,7 @@ type BookCandidate = {
   publishedYear: number | null;
   pages: number | null;
   description: string | null;
+  thumbnail: string | null;
 };
 
 type BookFormProps = {
@@ -45,11 +47,16 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
   const [category, setCategory] = useState(initialData.category ?? "");
   const [discipline, setDiscipline] = useState(initialData.discipline ?? "");
   const [description, setDescription] = useState(initialData.description ?? "");
+
+  // 検索用 state
+  const [searchQuery, setSearchQuery] = useState("");
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState("");
   const [candidates, setCandidates] = useState<BookCandidate[]>([]);
-  const [showCandidates, setShowCandidates] = useState(false);
   const candidateRef = useRef<HTMLDivElement>(null);
+  const isComposing = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     fetch("/api/categories")
@@ -60,11 +67,19 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (candidateRef.current && !candidateRef.current.contains(e.target as Node)) {
-        setShowCandidates(false);
+        setCandidates([]);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // クリーンアップ
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
   }, []);
 
   const applyCandidate = (candidate: BookCandidate) => {
@@ -75,43 +90,73 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
     if (candidate.pages) setPages(String(candidate.pages));
     setDescription(candidate.description ?? "");
     setCandidates([]);
-    setShowCandidates(false);
+    setSearchQuery("");
     setSearchError("");
   };
 
-  const handleSearch = async () => {
-    if (!title.trim()) return;
+  const doSearch = useCallback(async (query: string) => {
+    // 前のリクエストをキャンセル
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setSearchLoading(true);
     setSearchError("");
-    setCandidates([]);
-    setShowCandidates(false);
 
     try {
-      const res = await fetch(`/api/books/search?title=${encodeURIComponent(title)}`);
+      const res = await fetch(`/api/books/search?q=${encodeURIComponent(query)}`, {
+        signal: controller.signal,
+      });
       const data = await res.json();
+
+      if (controller.signal.aborted) return;
 
       if (!res.ok) {
         setSearchError(data.error ?? "検索に失敗しました");
+        setCandidates([]);
         return;
       }
 
       if (data.candidates.length === 0) {
         setSearchError("書籍が見つかりませんでした");
+        setCandidates([]);
         return;
       }
 
-      if (data.candidates.length === 1) {
-        applyCandidate(data.candidates[0]);
-      } else {
-        setCandidates(data.candidates);
-        setShowCandidates(true);
-      }
-    } catch {
+      setCandidates(data.candidates);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       setSearchError("検索中にエラーが発生しました");
+      setCandidates([]);
     } finally {
-      setSearchLoading(false);
+      if (!controller.signal.aborted) {
+        setSearchLoading(false);
+      }
     }
-  };
+  }, []);
+
+  const handleSearchInput = useCallback(
+    (value: string) => {
+      setSearchQuery(value);
+
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+
+      if (value.trim().length < 2) {
+        setCandidates([]);
+        setSearchError("");
+        setSearchLoading(false);
+        abortRef.current?.abort();
+        return;
+      }
+
+      debounceRef.current = setTimeout(() => {
+        if (!isComposing.current) {
+          doSearch(value.trim());
+        }
+      }, 500);
+    },
+    [doSearch]
+  );
 
   const [rating, setRating] = useState(String(initialData.rating ?? ""));
   const [notes, setNotes] = useState(initialData.notes ?? "");
@@ -153,7 +198,6 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
 
       if (!res.ok) throw new Error("保存に失敗しました");
 
-      // 編集後は詳細ページへ、新規登録は一覧へ
       router.push(mode === "edit" ? `/books/${initialData.id}` : "/books");
       router.refresh();
     } catch (err) {
@@ -171,60 +215,89 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
         </p>
       )}
 
+      {/* 検索セクション（新規登録時のみ） */}
+      {mode === "create" && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <label className="block text-sm font-medium text-blue-800 mb-2">
+            書籍を検索
+          </label>
+          <div className="relative">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => handleSearchInput(e.target.value)}
+              onCompositionStart={() => { isComposing.current = true; }}
+              onCompositionEnd={(e) => {
+                isComposing.current = false;
+                handleSearchInput((e.target as HTMLInputElement).value);
+              }}
+              placeholder="タイトル、著者名、出版社で検索..."
+              className="w-full p-2.5 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white placeholder:text-slate-400"
+            />
+            {searchLoading && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                <Spinner className="w-4 h-4 text-blue-500" />
+              </div>
+            )}
+          </div>
+          {searchError && (
+            <p className="text-sm text-amber-600 mt-2">{searchError}</p>
+          )}
+          {candidates.length > 0 && (
+            <div
+              ref={candidateRef}
+              className="mt-2 border border-blue-200 rounded-lg bg-white shadow-md overflow-hidden"
+            >
+              <p className="text-xs text-slate-500 px-3 py-1.5 bg-slate-50 border-b border-slate-200">
+                候補を選択してください（{candidates.length}件）
+              </p>
+              {candidates.map((c, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => applyCandidate(c)}
+                  className="w-full text-left px-3 py-2.5 hover:bg-blue-50 transition border-b border-slate-100 last:border-b-0 flex gap-3 items-start"
+                >
+                  {c.thumbnail ? (
+                    <Image
+                      src={c.thumbnail}
+                      alt=""
+                      width={48}
+                      height={64}
+                      className="rounded shadow-sm flex-shrink-0 object-cover"
+                      unoptimized
+                    />
+                  ) : (
+                    <div className="w-[48px] h-[64px] bg-slate-200 rounded flex-shrink-0 flex items-center justify-center">
+                      <span className="text-slate-400 text-xs">No Image</span>
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-slate-800 truncate">{c.title}</p>
+                    <p className="text-xs text-slate-600 truncate">{c.author}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      {[c.publisherName, c.publishedYear ? `${c.publishedYear}年` : "", c.pages ? `${c.pages}p` : ""].filter(Boolean).join(" / ")}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <div>
         <label className="block text-sm font-medium text-slate-600 mb-1">
           タイトル <span className="text-red-500">*</span>
         </label>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSearch(); } }}
-            placeholder="例：存在と時間"
-            className="flex-1 p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-            required
-          />
-          <button
-            type="button"
-            onClick={handleSearch}
-            disabled={searchLoading || !title.trim()}
-            className="flex items-center gap-1.5 px-3 py-2.5 bg-slate-100 text-slate-600 text-sm font-medium rounded-lg border border-slate-300 hover:bg-slate-200 active:scale-95 transition disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
-          >
-            {searchLoading ? (
-              <>
-                <Spinner className="w-3.5 h-3.5" />
-                <span>検索中...</span>
-              </>
-            ) : (
-              "情報を取得"
-            )}
-          </button>
-        </div>
-        {searchError && (
-          <p className="text-sm text-amber-600 mt-1">{searchError}</p>
-        )}
-        {showCandidates && candidates.length > 0 && (
-          <div
-            ref={candidateRef}
-            className="mt-1 border border-slate-200 rounded-lg bg-white shadow-md overflow-hidden z-10"
-          >
-            <p className="text-xs text-slate-500 px-3 py-1.5 bg-slate-50 border-b border-slate-200">
-              候補を選択してください
-            </p>
-            {candidates.map((c, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => applyCandidate(c)}
-                className="w-full text-left px-3 py-2 hover:bg-blue-50 transition border-b border-slate-100 last:border-b-0"
-              >
-                <p className="text-sm font-medium text-slate-800 truncate">{c.title}</p>
-                <p className="text-xs text-slate-500">{c.author}　{c.publisherName}　{c.publishedYear ?? ""}年</p>
-              </button>
-            ))}
-          </div>
-        )}
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="例：存在と時間"
+          className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+          required
+        />
       </div>
 
       <div>
