@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Spinner from "./Spinner";
+import { BOOK_STATUSES, BookStatus } from "@/lib/types";
 
 type BookCardProps = {
   id: string;
@@ -13,6 +14,7 @@ type BookCardProps = {
   pages: number;
   category: string | null;
   rating: number | null;
+  status: BookStatus;
   readAt: Date | null;
 };
 
@@ -25,6 +27,7 @@ export default function BookCard({
   pages,
   category,
   rating,
+  status,
   readAt,
 }: BookCardProps) {
   const router = useRouter();
@@ -76,11 +79,21 @@ export default function BookCard({
         </div>
         <span className="text-xs text-slate-400">{pages} P</span>
       </div>
-      {readAt && (
+      {status === "READ" && readAt ? (
         <p className="text-xs text-slate-400 mt-2">
           {new Date(readAt).toLocaleDateString("ja-JP")} 読了
         </p>
-      )}
+      ) : status !== "READ" ? (
+        <div className="mt-2">
+          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+            status === "WANT_TO_READ" ? "bg-purple-50 text-purple-600" :
+            status === "READING_STACK" ? "bg-amber-50 text-amber-600" :
+            "bg-blue-50 text-blue-600"
+          }`}>
+            {BOOK_STATUSES[status].label}
+          </span>
+        </div>
+      ) : null}
     </button>
   );
 }

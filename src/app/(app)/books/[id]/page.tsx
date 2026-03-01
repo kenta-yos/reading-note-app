@@ -2,7 +2,9 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import DeleteButton from "@/components/DeleteButton";
 import ActionLink from "@/components/ActionLink";
+import StatusChanger from "@/components/StatusChanger";
 import Link from "next/link";
+import { BookStatus } from "@/lib/types";
 
 export default async function BookDetailPage({
   params,
@@ -65,6 +67,11 @@ export default async function BookDetailPage({
           </ActionLink>
           <DeleteButton id={id} />
         </div>
+      </div>
+
+      {/* ステータス */}
+      <div className="mb-4">
+        <StatusChanger bookId={book.id} currentStatus={book.status as BookStatus} />
       </div>
 
       {/* メタ情報 */}

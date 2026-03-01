@@ -71,11 +71,14 @@ export async function GET(req: Request) {
     return /[\u3000-\u9FFF\uF900-\uFAFF]/.test(text);
   };
 
-  // 日本語書籍を優先してソート
+  // 日本語書籍を優先、同程度なら出版年が新しい順にソート
   const sorted = [...items].sort((a, b) => {
     const aJa = isJapanese(a.volumeInfo) ? 0 : 1;
     const bJa = isJapanese(b.volumeInfo) ? 0 : 1;
-    return aJa - bJa;
+    if (aJa !== bJa) return aJa - bJa;
+    const aYear = extractYear(a.volumeInfo?.publishedDate) ?? 0;
+    const bYear = extractYear(b.volumeInfo?.publishedDate) ?? 0;
+    return bYear - aYear;
   });
 
   // ISBN で重複排除しつつ候補を抽出（最大8件）

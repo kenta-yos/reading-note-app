@@ -1,3 +1,15 @@
+export const BOOK_STATUSES = {
+  WANT_TO_READ: { label: "読みたい", color: "purple" },
+  READING_STACK: { label: "積読", color: "amber" },
+  READING: { label: "読中", color: "blue" },
+  READ: { label: "読了", color: "green" },
+} as const;
+
+export type BookStatus = keyof typeof BOOK_STATUSES;
+
+// ステータスの進行順序（ワンタップ進行用）
+export const STATUS_FLOW: BookStatus[] = ["WANT_TO_READ", "READING_STACK", "READING", "READ"];
+
 export type Book = {
   id: string;
   title: string;
@@ -10,6 +22,7 @@ export type Book = {
   rating: number | null;
   description: string | null;
   notes: string | null;
+  status: BookStatus;
   readAt: Date | null;
   createdAt: Date;
 };

@@ -7,6 +7,13 @@ generator client {
   engineType = "library"
 }
 
+enum BookStatus {
+  WANT_TO_READ
+  READING_STACK
+  READING
+  READ
+}
+
 model Book {
   id            String        @id @default(cuid())
   title         String
@@ -19,6 +26,7 @@ model Book {
   rating        Int?
   description   String?
   notes         String?
+  status        BookStatus    @default(READ)
   readAt        DateTime?
   createdAt     DateTime      @default(now())
   keywords      BookKeyword[]

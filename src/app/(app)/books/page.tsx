@@ -6,6 +6,8 @@ import BookFilters from "@/components/BookFilters";
 import ActionLink from "@/components/ActionLink";
 import { Suspense } from "react";
 import { getAvailableYears } from "@/lib/stats";
+import { BookStatus, BOOK_STATUSES } from "@/lib/types";
+import { BookStatus as PrismaBookStatus } from "@prisma/client";
 
 async function getCategories(): Promise<string[]> {
   const cats = await prisma.category.findMany({ orderBy: { name: "asc" } });
@@ -16,10 +18,13 @@ type SearchParams = {
   q?: string;
   category?: string;
   year?: string;
+  status?: string;
 };
 
 async function BookList({ searchParams }: { searchParams: SearchParams }) {
-  const { year, category, q } = searchParams;
+  const { year, category, q, status } = searchParams;
+
+  const validStatus = status && status in BOOK_STATUSES ? (status as PrismaBookStatus) : undefined;
 
   const books = await prisma.book.findMany({
     where: {
@@ -30,6 +35,7 @@ async function BookList({ searchParams }: { searchParams: SearchParams }) {
         }
       } : {}),
       ...(category ? { category } : {}),
+      ...(validStatus ? { status: validStatus } : {}),
       ...(q ? {
         OR: [
           { title: { contains: q, mode: "insensitive" } },
@@ -37,7 +43,9 @@ async function BookList({ searchParams }: { searchParams: SearchParams }) {
         ]
       } : {}),
     },
-    orderBy: { readAt: "desc" },
+    orderBy: validStatus === "READ" || (!validStatus && !q)
+      ? { readAt: "desc" }
+      : { createdAt: "desc" },
   });
 
   if (books.length === 0) {
@@ -61,6 +69,7 @@ async function BookList({ searchParams }: { searchParams: SearchParams }) {
           pages={book.pages}
           category={book.category}
           rating={book.rating}
+          status={book.status as BookStatus}
           readAt={book.readAt}
         />
       ))}

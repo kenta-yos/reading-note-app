@@ -23,6 +23,7 @@ export default function EditBookForm({ book }: Props) {
         rating: book.rating ?? undefined,
         description: book.description ?? "",
         notes: book.notes ?? "",
+        status: book.status,
         readAt: book.readAt ? book.readAt.toISOString() : undefined,
       }}
     />

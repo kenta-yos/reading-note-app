@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Spinner from "./Spinner";
 import { DISCIPLINES } from "@/lib/disciplines";
+import { BOOK_STATUSES, BookStatus, STATUS_FLOW } from "@/lib/types";
 
 type BookCandidate = {
   title: string;
@@ -29,6 +30,7 @@ type BookFormProps = {
     rating?: number;
     description?: string;
     notes?: string;
+    status?: BookStatus;
     readAt?: string;
   };
   mode?: "create" | "edit";
@@ -158,6 +160,7 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
     [doSearch]
   );
 
+  const [status, setStatus] = useState<BookStatus>(initialData.status ?? "WANT_TO_READ");
   const [rating, setRating] = useState(String(initialData.rating ?? ""));
   const [notes, setNotes] = useState(initialData.notes ?? "");
   const [readAt, setReadAt] = useState(
@@ -182,7 +185,8 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
       rating: rating ? Number(rating) : null,
       description: description || null,
       notes,
-      readAt,
+      status,
+      readAt: status === "READ" ? readAt : null,
     };
 
     try {
@@ -286,6 +290,35 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
         </div>
       )}
 
+      {/* ステータス選択 */}
+      <div>
+        <label className="block text-sm font-medium text-slate-600 mb-2">
+          ステータス
+        </label>
+        <div className="grid grid-cols-4 gap-2">
+          {STATUS_FLOW.map((key) => {
+            const { label, color } = BOOK_STATUSES[key];
+            const isActive = status === key;
+            const colorMap = {
+              purple: isActive ? "border-purple-500 bg-purple-50 text-purple-700" : "border-slate-200 text-slate-500 hover:border-purple-300",
+              amber: isActive ? "border-amber-500 bg-amber-50 text-amber-700" : "border-slate-200 text-slate-500 hover:border-amber-300",
+              blue: isActive ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-500 hover:border-blue-300",
+              green: isActive ? "border-green-500 bg-green-50 text-green-700" : "border-slate-200 text-slate-500 hover:border-green-300",
+            };
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setStatus(key)}
+                className={`px-2 py-2 rounded-lg border-2 text-xs font-medium text-center transition-all ${colorMap[color]}`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <div>
         <label className="block text-sm font-medium text-slate-600 mb-1">
           タイトル <span className="text-red-500">*</span>
@@ -336,7 +369,7 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className={`grid grid-cols-1 ${status === "READ" ? "sm:grid-cols-2" : ""} gap-4`}>
         <div>
           <label className="block text-sm font-medium text-slate-600 mb-1">
             ページ数 <span className="text-red-500">*</span>
@@ -352,17 +385,19 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-slate-600 mb-1">
-            読了日
-          </label>
-          <input
-            type="date"
-            value={readAt}
-            onChange={(e) => setReadAt(e.target.value)}
-            className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-          />
-        </div>
+        {status === "READ" && (
+          <div>
+            <label className="block text-sm font-medium text-slate-600 mb-1">
+              読了日
+            </label>
+            <input
+              type="date"
+              value={readAt}
+              onChange={(e) => setReadAt(e.target.value)}
+              className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+            />
+          </div>
+        )}
       </div>
 
       <div>

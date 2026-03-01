@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
+import { BOOK_STATUSES, BookStatus, STATUS_FLOW } from "@/lib/types";
 
 type Props = {
   categories: string[];
@@ -37,8 +38,36 @@ export default function BookFilters({ categories, years }: Props) {
     }, 300);
   };
 
+  const activeStatus = searchParams.get("status") as BookStatus | null;
+
   return (
-    <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3 mb-5 lg:mb-6">
+    <div className="space-y-3 mb-5 lg:mb-6">
+      {/* ステータスタブ */}
+      <div className="flex border-b border-slate-200">
+        {STATUS_FLOW.map((key) => {
+          const { label, color } = BOOK_STATUSES[key];
+          const isActive = activeStatus === key;
+          const colorMap = {
+            purple: isActive ? "border-purple-500 text-purple-700" : "text-slate-400 hover:text-purple-600",
+            amber: isActive ? "border-amber-500 text-amber-700" : "text-slate-400 hover:text-amber-600",
+            blue: isActive ? "border-blue-500 text-blue-700" : "text-slate-400 hover:text-blue-600",
+            green: isActive ? "border-green-500 text-green-700" : "text-slate-400 hover:text-green-600",
+          };
+          return (
+            <button
+              key={key}
+              onClick={() => updateParam("status", isActive ? "" : key)}
+              className={`flex-1 pb-2 text-sm font-medium border-b-2 transition-colors ${
+                isActive ? colorMap[color] : `border-transparent ${colorMap[color]}`
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3">
       <div className="relative w-full sm:flex-1">
         <input
           type="text"
@@ -79,6 +108,7 @@ export default function BookFilters({ categories, years }: Props) {
             </option>
           ))}
         </select>
+      </div>
       </div>
     </div>
   );
