@@ -1,13 +1,15 @@
 export const dynamic = "force-dynamic";
 
 import { prisma } from "@/lib/prisma";
-import BookCard from "@/components/BookCard";
+import BookList from "@/components/BookList";
 import BookFilters from "@/components/BookFilters";
 import ActionLink from "@/components/ActionLink";
 import { Suspense } from "react";
 import { getAvailableYears } from "@/lib/stats";
-import { BookStatus, BOOK_STATUSES } from "@/lib/types";
+import { BOOK_STATUSES } from "@/lib/types";
 import { BookStatus as PrismaBookStatus } from "@prisma/client";
+
+const PAGE_SIZE = 10;
 
 async function getCategories(): Promise<string[]> {
   const cats = await prisma.category.findMany({ orderBy: { name: "asc" } });
@@ -21,59 +23,55 @@ type SearchParams = {
   status?: string;
 };
 
-async function BookList({ searchParams }: { searchParams: SearchParams }) {
+async function BookListServer({ searchParams }: { searchParams: SearchParams }) {
   const { year, category, q, status } = searchParams;
 
   const validStatus = status && status in BOOK_STATUSES ? (status as PrismaBookStatus) : undefined;
 
-  const books = await prisma.book.findMany({
-    where: {
-      ...(year ? {
-        readAt: {
-          gte: new Date(parseInt(year), 0, 1),
-          lt: new Date(parseInt(year) + 1, 0, 1),
-        }
-      } : {}),
-      ...(category ? { category } : {}),
-      ...(validStatus ? { status: validStatus } : {}),
-      ...(q ? {
-        OR: [
-          { title: { contains: q, mode: "insensitive" } },
-          { author: { contains: q, mode: "insensitive" } },
-        ]
-      } : {}),
-    },
-    orderBy: validStatus === "READ" || (!validStatus && !q)
-      ? { readAt: "desc" }
-      : { createdAt: "desc" },
-  });
+  const where = {
+    ...(year ? {
+      readAt: {
+        gte: new Date(parseInt(year), 0, 1),
+        lt: new Date(parseInt(year) + 1, 0, 1),
+      }
+    } : {}),
+    ...(category ? { category } : {}),
+    ...(validStatus ? { status: validStatus } : {}),
+    ...(q ? {
+      OR: [
+        { title: { contains: q, mode: "insensitive" as const } },
+        { author: { contains: q, mode: "insensitive" as const } },
+      ]
+    } : {}),
+  };
 
-  if (books.length === 0) {
-    return (
-      <p className="text-center text-slate-400 text-sm py-12">
-        {q ? `「${q}」に一致する本は見つかりません` : "本が登録されていません"}
-      </p>
-    );
-  }
+  const orderBy = validStatus === "READ" || (!validStatus && !q)
+    ? { readAt: "desc" as const }
+    : { createdAt: "desc" as const };
+
+  const [books, totalCount] = await Promise.all([
+    prisma.book.findMany({ where, orderBy, take: PAGE_SIZE + 1 }),
+    prisma.book.count({ where }),
+  ]);
+
+  const hasMore = books.length > PAGE_SIZE;
+  const items = hasMore ? books.slice(0, PAGE_SIZE) : books;
+  const nextCursor = hasMore ? items[items.length - 1].id : null;
+
+  // API呼び出し用のパラメータを構築
+  const apiParams: Record<string, string> = {};
+  if (q) apiParams.q = q;
+  if (category) apiParams.category = category;
+  if (year) apiParams.year = year;
+  if (validStatus) apiParams.status = validStatus;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-      {books.map((book) => (
-        <BookCard
-          key={book.id}
-          id={book.id}
-          title={book.title}
-          author={book.author}
-          publisher={book.publisher}
-          publishedYear={book.publishedYear}
-          pages={book.pages}
-          category={book.category}
-          rating={book.rating}
-          status={book.status as BookStatus}
-          readAt={book.readAt}
-        />
-      ))}
-    </div>
+    <BookList
+      initialBooks={JSON.parse(JSON.stringify(items))}
+      initialCursor={nextCursor}
+      totalCount={totalCount}
+      searchParams={apiParams}
+    />
   );
 }
 
@@ -126,7 +124,7 @@ export default async function BooksPage({
           </p>
         }
       >
-        <BookList searchParams={params} />
+        <BookListServer searchParams={params} />
       </Suspense>
     </div>
   );

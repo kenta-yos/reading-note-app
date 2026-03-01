@@ -8,32 +8,50 @@ export async function GET(req: Request) {
   const category = searchParams.get("category");
   const q = searchParams.get("q");
   const status = searchParams.get("status");
+  const cursor = searchParams.get("cursor");
+  const limit = Math.min(Number(searchParams.get("limit") ?? "10"), 50);
+
+  const where = {
+    ...(year ? {
+      readAt: {
+        gte: new Date(parseInt(year), 0, 1),
+        lt: new Date(parseInt(year) + 1, 0, 1),
+      }
+    } : {}),
+    ...(category ? { category } : {}),
+    ...(status && Object.values(PrismaBookStatus).includes(status as PrismaBookStatus)
+      ? { status: status as PrismaBookStatus }
+      : {}),
+    ...(q ? {
+      OR: [
+        { title: { contains: q, mode: "insensitive" as const } },
+        { author: { contains: q, mode: "insensitive" as const } },
+      ]
+    } : {}),
+  };
+
+  const orderBy = status === "READ" || (!status && !q)
+    ? { readAt: "desc" as const }
+    : { createdAt: "desc" as const };
+
+  const totalCount = await prisma.book.count({ where });
 
   const books = await prisma.book.findMany({
-    where: {
-      ...(year ? {
-        readAt: {
-          gte: new Date(parseInt(year), 0, 1),
-          lt: new Date(parseInt(year) + 1, 0, 1),
-        }
-      } : {}),
-      ...(category ? { category } : {}),
-      ...(status && Object.values(PrismaBookStatus).includes(status as PrismaBookStatus)
-        ? { status: status as PrismaBookStatus }
-        : {}),
-      ...(q ? {
-        OR: [
-          { title: { contains: q, mode: "insensitive" } },
-          { author: { contains: q, mode: "insensitive" } },
-        ]
-      } : {}),
-    },
-    orderBy: status === "READ" || (!status && !q)
-      ? { readAt: "desc" }
-      : { createdAt: "desc" },
+    where,
+    orderBy,
+    take: limit + 1,
+    ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
   });
 
-  return NextResponse.json(books);
+  const hasMore = books.length > limit;
+  const items = hasMore ? books.slice(0, limit) : books;
+  const nextCursor = hasMore ? items[items.length - 1].id : null;
+
+  return NextResponse.json({
+    books: items,
+    nextCursor,
+    totalCount,
+  });
 }
 
 export async function POST(req: Request) {
