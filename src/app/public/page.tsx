@@ -4,6 +4,13 @@ import PublicHeader from "./components/PublicHeader";
 import StatCards from "./components/StatCards";
 import PublicPageClient from "./components/PublicPageClient";
 
+type Evolution = {
+  period: string;
+  theme: string;
+  description: string;
+  keyBooks: string[];
+};
+
 export const dynamic = "force-dynamic";
 
 export default async function PublicPage() {
@@ -33,16 +40,17 @@ export default async function PublicPage() {
   const minYear = readDates[0] ?? new Date().getFullYear();
   const maxYear = readDates[readDates.length - 1] ?? new Date().getFullYear();
 
-  // Discipline counts
-  const discCountMap = new Map<string, number>();
-  for (const b of books) {
-    const disc = b.discipline;
-    if (!disc || disc === "未分類") continue;
-    discCountMap.set(disc, (discCountMap.get(disc) ?? 0) + 1);
-  }
-  const disciplineData = [...discCountMap.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .map(([discipline, count]) => ({ discipline, count }));
+  // Latest reading insight (evolution)
+  const latestInsight = await prisma.readingInsight.findFirst({
+    orderBy: { createdAt: "desc" },
+    select: { analysis: true },
+  });
+  const evolution: Evolution[] =
+    latestInsight?.analysis &&
+    typeof latestInsight.analysis === "object" &&
+    "evolution" in (latestInsight.analysis as Record<string, unknown>)
+      ? ((latestInsight.analysis as Record<string, unknown>).evolution as Evolution[])
+      : [];
 
   // Serializable book list for client
   const bookList = books.map((b) => ({
@@ -68,7 +76,7 @@ export default async function PublicPage() {
       </section>
 
       <PublicPageClient
-        disciplineData={disciplineData}
+        evolution={evolution}
         graphData={graphData}
         bookList={bookList}
       />
