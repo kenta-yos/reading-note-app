@@ -14,6 +14,7 @@ export default async function PublicPage() {
       title: true,
       author: true,
       category: true,
+      discipline: true,
       readAt: true,
       pages: true,
     },
@@ -32,21 +33,23 @@ export default async function PublicPage() {
   const minYear = readDates[0] ?? new Date().getFullYear();
   const maxYear = readDates[readDates.length - 1] ?? new Date().getFullYear();
 
-  // Category counts
-  const catCountMap = new Map<string, number>();
+  // Discipline counts
+  const discCountMap = new Map<string, number>();
   for (const b of books) {
-    const cat = b.category ?? "その他";
-    catCountMap.set(cat, (catCountMap.get(cat) ?? 0) + 1);
+    const disc = b.discipline;
+    if (!disc || disc === "未分類") continue;
+    discCountMap.set(disc, (discCountMap.get(disc) ?? 0) + 1);
   }
-  const categoryData = [...catCountMap.entries()]
+  const disciplineData = [...discCountMap.entries()]
     .sort((a, b) => b[1] - a[1])
-    .map(([category, count]) => ({ category, count }));
+    .map(([discipline, count]) => ({ discipline, count }));
 
   // Serializable book list for client
   const bookList = books.map((b) => ({
     title: b.title,
     author: b.author,
     category: b.category,
+    discipline: b.discipline,
     readYear: b.readAt!.getFullYear(),
     pageCount: b.pages,
   }));
@@ -65,7 +68,7 @@ export default async function PublicPage() {
       </section>
 
       <PublicPageClient
-        categoryData={categoryData}
+        disciplineData={disciplineData}
         graphData={graphData}
         bookList={bookList}
       />
