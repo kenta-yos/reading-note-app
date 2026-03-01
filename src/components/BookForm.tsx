@@ -11,6 +11,7 @@ type BookCandidate = {
   publisherName: string;
   publishedYear: number | null;
   pages: number | null;
+  description: string | null;
 };
 
 type BookFormProps = {
@@ -24,6 +25,7 @@ type BookFormProps = {
     category?: string;
     discipline?: string;
     rating?: number;
+    description?: string;
     notes?: string;
     readAt?: string;
   };
@@ -42,6 +44,7 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
   const [pages, setPages] = useState(String(initialData.pages ?? ""));
   const [category, setCategory] = useState(initialData.category ?? "");
   const [discipline, setDiscipline] = useState(initialData.discipline ?? "");
+  const [description, setDescription] = useState(initialData.description ?? "");
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState("");
   const [candidates, setCandidates] = useState<BookCandidate[]>([]);
@@ -70,6 +73,7 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
     setPublisher(candidate.publisherName);
     setPublishedYear(String(candidate.publishedYear ?? ""));
     if (candidate.pages) setPages(String(candidate.pages));
+    setDescription(candidate.description ?? "");
     setCandidates([]);
     setShowCandidates(false);
     setSearchError("");
@@ -131,6 +135,7 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
       category: category || null,
       discipline: discipline || null,
       rating: rating ? Number(rating) : null,
+      description: description || null,
       notes,
       readAt,
     };
@@ -342,6 +347,22 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
           </select>
         </div>
       </div>
+
+      {description && (
+        <div>
+          <label className="block text-sm font-medium text-slate-600 mb-1">
+            内容紹介
+          </label>
+          <details open className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+            <summary className="text-xs text-slate-400 cursor-pointer select-none">
+              表示 / 非表示
+            </summary>
+            <p className="text-sm text-slate-600 leading-relaxed mt-2 whitespace-pre-wrap">
+              {description}
+            </p>
+          </details>
+        </div>
+      )}
 
       <div>
         <label className="block text-sm font-medium text-slate-600 mb-1">

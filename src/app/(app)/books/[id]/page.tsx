@@ -89,6 +89,18 @@ export default async function BookDetailPage({
         )}
       </div>
 
+      {/* 内容紹介 */}
+      {book.description && (
+        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm mb-4">
+          <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">
+            内容紹介
+          </h2>
+          <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
+            {book.description}
+          </p>
+        </div>
+      )}
+
       {/* 抽出された概念 */}
       {keywords.length > 0 && (
         <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm mb-4">

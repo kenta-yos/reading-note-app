@@ -8,6 +8,7 @@ export type Book = {
   category: string | null;
   discipline: string | null;
   rating: number | null;
+  description: string | null;
   notes: string | null;
   readAt: Date | null;
   createdAt: Date;

@@ -18,7 +18,7 @@ export async function PUT(
   const { id } = await params;
   try {
     const body = await req.json();
-    const { title, author, publisher, publishedYear, pages, category, discipline, rating, notes, readAt } = body;
+    const { title, author, publisher, publishedYear, pages, category, discipline, rating, description, notes, readAt } = body;
 
     const book = await prisma.book.update({
       where: { id },
@@ -31,6 +31,7 @@ export async function PUT(
         category: category || null,
         discipline: discipline || null,
         rating: rating ? Number(rating) : null,
+        description: description || null,
         notes: notes || null,
         readAt: readAt ? new Date(readAt) : null,
       },

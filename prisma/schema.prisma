@@ -17,6 +17,7 @@ model Book {
   category      String?
   discipline    String?
   rating        Int?
+  description   String?
   notes         String?
   readAt        DateTime?
   createdAt     DateTime      @default(now())

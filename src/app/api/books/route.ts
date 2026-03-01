@@ -32,7 +32,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { title, author, publisher, publishedYear, pages, category, discipline, rating, notes, readAt } = body;
+    const { title, author, publisher, publishedYear, pages, category, discipline, rating, description, notes, readAt } = body;
 
     const book = await prisma.book.create({
       data: {
@@ -44,6 +44,7 @@ export async function POST(req: Request) {
         category: category || null,
         discipline: discipline || null,
         rating: rating ? Number(rating) : null,
+        description: description || null,
         notes: notes || null,
         readAt: readAt ? new Date(readAt) : null,
       },

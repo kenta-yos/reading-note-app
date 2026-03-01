@@ -40,6 +40,7 @@ type Candidate = {
   publisherName: string;
   publishedYear: number | null;
   pages: number | null;
+  description: string | null;
 };
 
 export async function GET(req: Request) {
@@ -114,6 +115,7 @@ export async function GET(req: Request) {
       publisherName: publisher,
       publishedYear: extractYear(issued),
       pages,
+      description: null,
     });
     candidateIsbns.push(isbn);
   }
@@ -122,38 +124,54 @@ export async function GET(req: Request) {
     return NextResponse.json({ candidates: [] });
   }
 
-  // ページ数が取れなかった候補を OpenBD で補完
-  const missingIsbns = candidateIsbns.filter(
-    (isbn, i) => isbn !== null && candidates[i].pages === null
-  ) as string[];
+  // 全候補の ISBN で OpenBD をフェッチし、ページ数補完 + 内容紹介取得
+  const validIsbns = candidateIsbns.filter((isbn) => isbn !== null) as string[];
 
-  if (missingIsbns.length > 0) {
+  if (validIsbns.length > 0) {
     try {
       const openBDRes = await fetch(
-        `https://api.openbd.jp/v1/get?isbn=${missingIsbns.join(",")}`
+        `https://api.openbd.jp/v1/get?isbn=${validIsbns.join(",")}`
       );
       if (openBDRes.ok) {
-        const openBDData: Array<{
-          summary?: { isbn?: string; pages?: string };
-        } | null> = await openBDRes.json();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const openBDData: Array<any | null> = await openBDRes.json();
 
         const pagesMap: Record<string, number> = {};
+        const descMap: Record<string, string> = {};
+
         for (const entry of openBDData) {
-          if (entry?.summary?.isbn && entry.summary.pages) {
+          if (!entry) continue;
+          const isbn = entry.summary?.isbn;
+          if (!isbn) continue;
+
+          // ページ数
+          if (entry.summary?.pages) {
             const p = parseInt(entry.summary.pages, 10);
-            if (!isNaN(p) && p > 0) pagesMap[entry.summary.isbn] = p;
+            if (!isNaN(p) && p > 0) pagesMap[isbn] = p;
           }
+
+          // 内容紹介: TextType "03"(詳細) → "02"(短い)
+          const textContents: Array<{ TextType?: string; Text?: string }> =
+            entry.onix?.CollateralDetail?.TextContent ?? [];
+          const detailed = textContents.find((tc) => tc.TextType === "03");
+          const short = textContents.find((tc) => tc.TextType === "02");
+          const desc = detailed?.Text || short?.Text;
+          if (desc) descMap[isbn] = desc;
         }
 
         for (let i = 0; i < candidates.length; i++) {
           const isbn = candidateIsbns[i];
-          if (isbn && candidates[i].pages === null && pagesMap[isbn]) {
+          if (!isbn) continue;
+          if (candidates[i].pages === null && pagesMap[isbn]) {
             candidates[i].pages = pagesMap[isbn];
+          }
+          if (descMap[isbn]) {
+            candidates[i].description = descMap[isbn];
           }
         }
       }
     } catch {
-      // OpenBD 失敗時はページ数なしのまま返す
+      // OpenBD 失敗時はページ数・内容紹介なしのまま返す
     }
   }
 
