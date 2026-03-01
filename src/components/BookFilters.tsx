@@ -25,6 +25,8 @@ export default function BookFilters({ categories, years }: Props) {
       } else {
         params.delete(key);
       }
+      // フィルタ変更時はページネーションをリセット
+      params.delete("take");
       startTransition(() => {
         router.push(`/books?${params.toString()}`);
       });

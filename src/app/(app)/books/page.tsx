@@ -8,8 +8,9 @@ import { Suspense } from "react";
 import { getAvailableYears } from "@/lib/stats";
 import { BOOK_STATUSES } from "@/lib/types";
 import { BookStatus as PrismaBookStatus } from "@prisma/client";
+import { redirect } from "next/navigation";
 
-const PAGE_SIZE = 10;
+const DEFAULT_PAGE_SIZE = 10;
 
 async function getCategories(): Promise<string[]> {
   const cats = await prisma.category.findMany({ orderBy: { name: "asc" } });
@@ -21,10 +22,12 @@ type SearchParams = {
   category?: string;
   year?: string;
   status?: string;
+  take?: string;
 };
 
 async function BookListServer({ searchParams }: { searchParams: SearchParams }) {
-  const { year, category, q, status } = searchParams;
+  const { year, category, q, status, take: takeParam } = searchParams;
+  const take = Math.min(Number(takeParam) || DEFAULT_PAGE_SIZE, 200);
 
   const validStatus = status && status in BOOK_STATUSES ? (status as PrismaBookStatus) : undefined;
 
@@ -45,32 +48,23 @@ async function BookListServer({ searchParams }: { searchParams: SearchParams }) 
     } : {}),
   };
 
-  const orderBy = validStatus === "READ" || (!validStatus && !q)
+  const orderBy = validStatus === "READ"
     ? { readAt: "desc" as const }
     : { createdAt: "desc" as const };
 
   const [books, totalCount] = await Promise.all([
-    prisma.book.findMany({ where, orderBy, take: PAGE_SIZE + 1 }),
+    prisma.book.findMany({ where, orderBy, take: take + 1 }),
     prisma.book.count({ where }),
   ]);
 
-  const hasMore = books.length > PAGE_SIZE;
-  const items = hasMore ? books.slice(0, PAGE_SIZE) : books;
-  const nextCursor = hasMore ? items[items.length - 1].id : null;
-
-  // API呼び出し用のパラメータを構築
-  const apiParams: Record<string, string> = {};
-  if (q) apiParams.q = q;
-  if (category) apiParams.category = category;
-  if (year) apiParams.year = year;
-  if (validStatus) apiParams.status = validStatus;
+  const hasMore = books.length > take;
+  const items = hasMore ? books.slice(0, take) : books;
 
   return (
     <BookList
-      initialBooks={JSON.parse(JSON.stringify(items))}
-      initialCursor={nextCursor}
+      books={JSON.parse(JSON.stringify(items))}
       totalCount={totalCount}
-      searchParams={apiParams}
+      hasMore={hasMore}
     />
   );
 }
@@ -80,8 +74,14 @@ export default async function BooksPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  const [params, categories, availableYears] = await Promise.all([
-    searchParams,
+  const params = await searchParams;
+
+  // デフォルトで「読みたい」タブを開く
+  if (!params.status && !params.q && !params.category && !params.year) {
+    redirect("/books?status=WANT_TO_READ");
+  }
+
+  const [categories, availableYears] = await Promise.all([
     getCategories(),
     getAvailableYears(),
   ]);

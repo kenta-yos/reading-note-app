@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import BookCard from "./BookCard";
 import Spinner from "./Spinner";
 import { BookStatus } from "@/lib/types";
@@ -19,39 +20,30 @@ type BookData = {
 };
 
 type Props = {
-  initialBooks: BookData[];
-  initialCursor: string | null;
+  books: BookData[];
   totalCount: number;
-  searchParams: Record<string, string>;
+  hasMore: boolean;
 };
 
-export default function BookList({ initialBooks, initialCursor, totalCount, searchParams }: Props) {
-  const [books, setBooks] = useState<BookData[]>(initialBooks);
-  const [cursor, setCursor] = useState<string | null>(initialCursor);
+export default function BookList({ books, totalCount, hasMore }: Props) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
 
-  const loadMore = useCallback(async () => {
-    if (!cursor || loading) return;
+  const handleLoadMore = () => {
+    if (loading) return;
     setLoading(true);
-    try {
-      const params = new URLSearchParams(searchParams);
-      params.set("cursor", cursor);
-      params.set("limit", "10");
-      const res = await fetch(`/api/books?${params.toString()}`);
-      if (res.ok) {
-        const data = await res.json();
-        setBooks((prev) => [...prev, ...data.books]);
-        setCursor(data.nextCursor);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [cursor, loading, searchParams]);
+    const params = new URLSearchParams(searchParams.toString());
+    const currentTake = Number(params.get("take") || "10");
+    params.set("take", String(currentTake + 10));
+    router.push(`/books?${params.toString()}`, { scroll: false });
+  };
 
   if (books.length === 0) {
+    const q = searchParams.get("q");
     return (
       <p className="text-center text-slate-400 text-sm py-12">
-        {searchParams.q ? `「${searchParams.q}」に一致する本は見つかりません` : "本が登録されていません"}
+        {q ? `「${q}」に一致する本は見つかりません` : "本が登録されていません"}
       </p>
     );
   }
@@ -80,9 +72,9 @@ export default function BookList({ initialBooks, initialCursor, totalCount, sear
         <p className="text-xs text-slate-400 mb-2">
           {books.length} / {totalCount} 冊を表示
         </p>
-        {cursor && (
+        {hasMore && (
           <button
-            onClick={loadMore}
+            onClick={handleLoadMore}
             disabled={loading}
             className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:border-blue-300 hover:text-blue-600 transition-colors shadow-sm disabled:opacity-50"
           >
