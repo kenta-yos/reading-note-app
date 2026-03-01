@@ -23,12 +23,11 @@ export default function DeleteButton({ id }: { id: string }) {
 
   if (confirming) {
     return (
-      <div className="flex items-center gap-2 flex-wrap justify-end">
-        <span className="text-sm text-slate-500">削除しますか？</span>
+      <div className="flex items-center gap-2">
         <button
           onClick={handleDelete}
           disabled={deleting}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 active:scale-95 transition disabled:opacity-60 disabled:cursor-not-allowed"
+          className="flex items-center gap-1.5 px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 active:scale-95 transition disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {deleting ? (
             <>
@@ -36,15 +35,15 @@ export default function DeleteButton({ id }: { id: string }) {
               <span>削除中...</span>
             </>
           ) : (
-            "削除する"
+            "本当に削除"
           )}
         </button>
         {!deleting && (
           <button
             onClick={() => setConfirming(false)}
-            className="px-3 py-1.5 text-sm border border-slate-300 text-slate-600 rounded-lg hover:bg-slate-50 active:scale-95 transition"
+            className="px-3 py-2 text-sm border border-slate-300 text-slate-600 rounded-lg hover:bg-slate-50 active:scale-95 transition"
           >
-            キャンセル
+            やめる
           </button>
         )}
       </div>
