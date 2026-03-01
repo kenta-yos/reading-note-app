@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, lazy, Suspense } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import Spinner from "./Spinner";
 import { DISCIPLINES } from "@/lib/disciplines";
 import { BOOK_STATUSES, BookStatus, STATUS_FLOW } from "@/lib/types";
 
-const BarcodeScanner = lazy(() => import("./BarcodeScanner"));
+const BarcodeScanner = dynamic(() => import("./BarcodeScanner"), { ssr: false });
 
 type BookCandidate = {
   title: string;
@@ -232,12 +233,10 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
 
       {/* バーコードスキャナー */}
       {showScanner && (
-        <Suspense fallback={null}>
-          <BarcodeScanner
-            onScan={handleBarcodeScan}
-            onClose={() => setShowScanner(false)}
-          />
-        </Suspense>
+        <BarcodeScanner
+          onScan={handleBarcodeScan}
+          onClose={() => setShowScanner(false)}
+        />
       )}
 
       {/* 検索セクション（新規登録時のみ） */}

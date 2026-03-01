@@ -11,8 +11,11 @@ type Props = {
 export default function BarcodeScanner({ onScan, onClose }: Props) {
   const scannerRef = useRef<HTMLDivElement>(null);
   const html5QrCodeRef = useRef<import("html5-qrcode").Html5Qrcode | null>(null);
+  const onScanRef = useRef(onScan);
+  onScanRef.current = onScan;
   const [error, setError] = useState("");
   const [initializing, setInitializing] = useState(true);
+  const scannedRef = useRef(false);
 
   useEffect(() => {
     let mounted = true;
@@ -33,11 +36,13 @@ export default function BarcodeScanner({ onScan, onClose }: Props) {
             aspectRatio: 1.0,
           },
           (decodedText) => {
+            if (scannedRef.current) return;
             // ISBN-13 is 13 digits starting with 978 or 979
             const cleaned = decodedText.replace(/[^0-9]/g, "");
             if (/^97[89]\d{10}$/.test(cleaned)) {
+              scannedRef.current = true;
               scanner.stop().catch(() => {});
-              onScan(cleaned);
+              onScanRef.current(cleaned);
             }
           },
           () => {
@@ -62,9 +67,12 @@ export default function BarcodeScanner({ onScan, onClose }: Props) {
 
     return () => {
       mounted = false;
-      html5QrCodeRef.current?.stop().catch(() => {});
+      if (html5QrCodeRef.current) {
+        html5QrCodeRef.current.stop().catch(() => {});
+        html5QrCodeRef.current = null;
+      }
     };
-  }, [onScan]);
+  }, []);
 
   return (
     <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">

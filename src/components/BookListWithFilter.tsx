@@ -45,6 +45,7 @@ type Props = {
   bookmarked?: Set<string>;
   onToggleBookmark?: (book: NDLBook) => void;
   newIsbns?: Set<string>;
+  registeredTitles?: string[];
 };
 
 function BookmarkButton({
@@ -107,8 +108,15 @@ function bookLinkUrl(book: NDLBook): string | null {
   return book.ndlUrl;
 }
 
-function RegisterButton({ book }: { book: NDLBook }) {
+function RegisterButton({ book, isRegistered }: { book: NDLBook; isRegistered: boolean }) {
   const router = useRouter();
+  if (isRegistered) {
+    return (
+      <span className="flex-shrink-0 px-2 py-1 rounded text-[10px] font-medium bg-green-50 text-green-600 border border-green-200">
+        登録済
+      </span>
+    );
+  }
   const handleRegister = () => {
     const params = new URLSearchParams();
     params.set("title", book.title);
@@ -137,6 +145,7 @@ function BookRow({
   userDisciplines,
   isBookmarked,
   isNew,
+  isRegistered,
   onToggle,
 }: {
   book: NDLBook;
@@ -144,6 +153,7 @@ function BookRow({
   userDisciplines: string[];
   isBookmarked: boolean;
   isNew: boolean;
+  isRegistered: boolean;
   onToggle: (() => void) | null;
 }) {
   const [pending, setPending] = useState(false);
@@ -214,7 +224,7 @@ function BookRow({
         </div>
       </div>
       <div className="flex items-center gap-1 flex-shrink-0">
-        <RegisterButton book={book} />
+        <RegisterButton book={book} isRegistered={isRegistered} />
         {onToggle && book.isbn && (
           <BookmarkButton
             isBookmarked={isBookmarked}
@@ -234,7 +244,9 @@ export default function BookListWithFilter({
   bookmarked = new Set(),
   onToggleBookmark,
   newIsbns = new Set(),
+  registeredTitles = [],
 }: Props) {
+  const registeredSet = new Set(registeredTitles);
   const [selectedPublisher, setSelectedPublisher] = useState<string | null>(null);
   const [publisherSearch, setPublisherSearch] = useState("");
   const [isPublisherOpen, setIsPublisherOpen] = useState(false);
@@ -386,6 +398,7 @@ export default function BookListWithFilter({
                 userDisciplines={userDisciplines}
                 isBookmarked={cleanIsbn ? bookmarked.has(cleanIsbn) : false}
                 isNew={cleanIsbn ? newIsbns.has(cleanIsbn) : false}
+                isRegistered={registeredSet.has(b.title)}
                 onToggle={onToggleBookmark ? () => onToggleBookmark(b) : null}
               />
             );

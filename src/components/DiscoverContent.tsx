@@ -13,6 +13,7 @@ type Props = {
   userDisciplines: string[];
   allPublishers: string[];
   toggleBookmark: (book: NDLBook) => Promise<void>;
+  registeredTitles?: string[];
 };
 
 export default function DiscoverContent(props: Props) {
@@ -28,7 +29,7 @@ export default function DiscoverContent(props: Props) {
       </div>
 
       <div className="mt-6 bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-        <DiscoverTabs {...props} newIsbns={newIsbns} />
+        <DiscoverTabs {...props} newIsbns={newIsbns} registeredTitles={props.registeredTitles} />
       </div>
     </>
   );

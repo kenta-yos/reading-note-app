@@ -73,7 +73,7 @@ export default async function DiscoverPage() {
   const oneMonthLaterStr = buildDateStr(oneMonthLater);
   const oneMonthLaterYM = oneMonthLaterStr.slice(0, 7);
 
-  const [allDiscovered, bookmarks, disciplineRows] = await Promise.all([
+  const [allDiscovered, bookmarks, disciplineRows, registeredBooks] = await Promise.all([
     prisma.discoveredBook.findMany({ orderBy: { issued: "desc" } }),
     prisma.discoverBookmark.findMany({ orderBy: { createdAt: "desc" } }),
     prisma.book.groupBy({
@@ -83,7 +83,10 @@ export default async function DiscoverPage() {
       orderBy: { _count: { id: "desc" } },
       take: 8,
     }),
+    prisma.book.findMany({ select: { title: true } }),
   ]);
+
+  const registeredTitles = registeredBooks.map((b) => b.title);
 
   // DB レコードを NDLBook 形式に変換
   const allBooks: NDLBook[] = allDiscovered.map((b) => ({
@@ -171,6 +174,7 @@ export default async function DiscoverPage() {
         userDisciplines={userDisciplines}
         allPublishers={allPublishers}
         toggleBookmark={toggleBookmark}
+        registeredTitles={registeredTitles}
       />
     </div>
   );
