@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ConceptGraphData } from "@/lib/concepts";
 
 type PositionedNode = {
@@ -20,6 +20,8 @@ type PositionedEdge = {
   y2: number;
   strength: number;
   key: string;
+  source: string;
+  target: string;
 };
 
 function yearToColor(
@@ -212,11 +214,70 @@ export default function ConceptNetwork({
             y2: t.y!,
             strength: l.strength,
             key: `${s.concept}-${t.concept}`,
+            source: s.concept,
+            target: t.concept,
           };
         }),
       });
     });
   }, [data]);
+
+  // ── ドラッグ機能 ──────────────────────────────────────
+  const svgRef = useRef<SVGSVGElement>(null);
+  const dragRef = useRef<{ concept: string; offsetX: number; offsetY: number } | null>(null);
+
+  const screenToSVG = useCallback((clientX: number, clientY: number) => {
+    const svg = svgRef.current;
+    if (!svg) return { x: 0, y: 0 };
+    const pt = svg.createSVGPoint();
+    pt.x = clientX;
+    pt.y = clientY;
+    const svgPt = pt.matrixTransform(svg.getScreenCTM()!.inverse());
+    return { x: svgPt.x, y: svgPt.y };
+  }, []);
+
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent, concept: string) => {
+      if (!graph) return;
+      const node = graph.nodes.find((n) => n.concept === concept);
+      if (!node) return;
+      const svgPt = screenToSVG(e.clientX, e.clientY);
+      dragRef.current = {
+        concept,
+        offsetX: node.x - svgPt.x,
+        offsetY: node.y - svgPt.y,
+      };
+      (e.target as Element).setPointerCapture(e.pointerId);
+      setTooltip(null);
+    },
+    [graph, screenToSVG]
+  );
+
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (!dragRef.current || !graph) return;
+      const { concept, offsetX, offsetY } = dragRef.current;
+      const svgPt = screenToSVG(e.clientX, e.clientY);
+      const newX = Math.max(20, Math.min(W - 20, svgPt.x + offsetX));
+      const newY = Math.max(20, Math.min(H - 20, svgPt.y + offsetY));
+
+      setGraph({
+        nodes: graph.nodes.map((n) =>
+          n.concept === concept ? { ...n, x: newX, y: newY } : n
+        ),
+        edges: graph.edges.map((edge) => {
+          if (edge.source === concept) return { ...edge, x1: newX, y1: newY };
+          if (edge.target === concept) return { ...edge, x2: newX, y2: newY };
+          return edge;
+        }),
+      });
+    },
+    [graph, screenToSVG]
+  );
+
+  const handlePointerUp = useCallback(() => {
+    dragRef.current = null;
+  }, []);
 
   if (!data.nodes.length) {
     return (
@@ -274,9 +335,13 @@ export default function ConceptNetwork({
       ) : (
         <div className="overflow-auto rounded-lg border border-slate-100 bg-slate-50">
           <svg
+            ref={svgRef}
             viewBox={`0 0 ${W} ${H}`}
             width="100%"
-            style={{ display: "block", minWidth: 320 }}
+            style={{ display: "block", minWidth: 320, touchAction: "none" }}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerLeave={handlePointerUp}
           >
             {graph.edges.map((e) => (
               <line
@@ -294,20 +359,18 @@ export default function ConceptNetwork({
               <g
                 key={n.concept}
                 transform={`translate(${n.x},${n.y})`}
-                onMouseEnter={(e) =>
-                  setTooltip({
-                    ...n,
-                    clientX: e.clientX,
-                    clientY: e.clientY,
-                  })
-                }
-                onMouseMove={(e) =>
-                  setTooltip((p) =>
-                    p
-                      ? { ...p, clientX: e.clientX, clientY: e.clientY }
-                      : null
-                  )
-                }
+                className="cursor-grab active:cursor-grabbing"
+                onPointerDown={(e) => handlePointerDown(e, n.concept)}
+                onMouseEnter={(e) => {
+                  if (!dragRef.current)
+                    setTooltip({ ...n, clientX: e.clientX, clientY: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  if (!dragRef.current)
+                    setTooltip((p) =>
+                      p ? { ...p, clientX: e.clientX, clientY: e.clientY } : null
+                    );
+                }}
                 onMouseLeave={() => setTooltip(null)}
               >
                 <circle
