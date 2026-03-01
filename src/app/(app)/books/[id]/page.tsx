@@ -31,11 +31,18 @@ export default async function BookDetailPage({
 
   return (
     <div className="max-w-2xl mx-auto">
-      {/* パンくずリスト */}
+      {/* 戻るボタン + パンくず */}
       <div className="flex items-center gap-2 mb-6 text-sm text-slate-400">
-        <Link href="/books" className="hover:text-slate-600 transition-colors">
-          読書記録
-        </Link>
+        <ActionLink
+          href="/books"
+          className="inline-flex items-center gap-1 text-slate-500 hover:text-blue-600 transition-colors"
+          spinnerClassName="w-3.5 h-3.5 text-slate-400"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          </svg>
+          一覧に戻る
+        </ActionLink>
         <span>/</span>
         <span className="text-slate-600 truncate">{book.title}</span>
       </div>
