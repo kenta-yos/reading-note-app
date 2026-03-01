@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Spinner from "./Spinner";
 import { DISCIPLINES } from "@/lib/disciplines";
 import { BOOK_STATUSES, BookStatus, STATUS_FLOW } from "@/lib/types";
+
+const BarcodeScanner = lazy(() => import("./BarcodeScanner"));
 
 type BookCandidate = {
   title: string;
@@ -59,6 +61,7 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
   const isComposing = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [showScanner, setShowScanner] = useState(false);
 
   useEffect(() => {
     fetch("/api/categories")
@@ -160,6 +163,14 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
     [doSearch]
   );
 
+  const handleBarcodeScan = useCallback(
+    (isbn: string) => {
+      setShowScanner(false);
+      doSearch(`isbn:${isbn}`);
+    },
+    [doSearch]
+  );
+
   const [status, setStatus] = useState<BookStatus>(initialData.status ?? "WANT_TO_READ");
   const [rating, setRating] = useState(String(initialData.rating ?? ""));
   const [notes, setNotes] = useState(initialData.notes ?? "");
@@ -219,12 +230,34 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
         </p>
       )}
 
+      {/* バーコードスキャナー */}
+      {showScanner && (
+        <Suspense fallback={null}>
+          <BarcodeScanner
+            onScan={handleBarcodeScan}
+            onClose={() => setShowScanner(false)}
+          />
+        </Suspense>
+      )}
+
       {/* 検索セクション（新規登録時のみ） */}
       {mode === "create" && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-          <label className="block text-sm font-medium text-blue-800 mb-2">
-            書籍を検索
-          </label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-sm font-medium text-blue-800">
+              書籍を検索
+            </label>
+            <button
+              type="button"
+              onClick={() => setShowScanner(true)}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-white border border-blue-300 text-blue-700 hover:bg-blue-100 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+                <path d="M1 4.25a3.733 3.733 0 012.25-.75h13.5c.844 0 1.623.279 2.25.75A2.25 2.25 0 0016.75 2H3.25A2.25 2.25 0 001 4.25zM1 7.25a3.733 3.733 0 012.25-.75h13.5c.844 0 1.623.279 2.25.75A2.25 2.25 0 0016.75 5H3.25A2.25 2.25 0 001 7.25zM7 8a1 1 0 000 2h6a1 1 0 100-2H7zM3.25 8A2.25 2.25 0 001 10.25v5.5A2.25 2.25 0 003.25 18h13.5A2.25 2.25 0 0019 15.75v-5.5A2.25 2.25 0 0016.75 8H3.25z" />
+              </svg>
+              バーコード
+            </button>
+          </div>
           <div className="relative">
             <input
               type="text"

@@ -5,6 +5,8 @@ import { useCallback, useRef, useState, useTransition } from "react";
 import { BOOK_STATUSES, BookStatus, STATUS_FLOW } from "@/lib/types";
 import Spinner from "./Spinner";
 
+type TabKey = BookStatus | null;
+
 type Props = {
   categories: string[];
   years: number[];
@@ -16,6 +18,7 @@ export default function BookFilters({ categories, years }: Props) {
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [isTyping, setIsTyping] = useState<boolean>(false);
   const [isPending, startTransition] = useTransition();
+  const [pendingTab, setPendingTab] = useState<TabKey>(null);
 
   const updateParam = useCallback(
     (key: string, value: string) => {
@@ -49,10 +52,11 @@ export default function BookFilters({ categories, years }: Props) {
   return (
     <div className="space-y-3 mb-5 lg:mb-6">
       {/* ステータスタブ */}
-      <div className="flex border-b border-slate-200 relative">
+      <div className="flex border-b border-slate-200">
         {STATUS_FLOW.map((key) => {
           const { label, color } = BOOK_STATUSES[key];
           const isActive = activeStatus === key;
+          const isLoading = isPending && pendingTab === key;
           const colorMap = {
             purple: isActive ? "border-purple-500 text-purple-700" : "text-slate-400 hover:text-purple-600",
             amber: isActive ? "border-amber-500 text-amber-700" : "text-slate-400 hover:text-amber-600",
@@ -62,21 +66,23 @@ export default function BookFilters({ categories, years }: Props) {
           return (
             <button
               key={key}
-              onClick={() => updateParam("status", isActive ? "" : key)}
+              onClick={() => {
+                setPendingTab(isActive ? null : key);
+                updateParam("status", isActive ? "" : key);
+              }}
               disabled={isPending}
               className={`flex-1 pb-2 text-sm font-medium border-b-2 transition-colors ${
                 isActive ? colorMap[color] : `border-transparent ${colorMap[color]}`
               } ${isPending ? "opacity-60" : ""}`}
             >
-              {label}
+              {isLoading ? (
+                <Spinner className="w-4 h-4 mx-auto text-slate-400" />
+              ) : (
+                label
+              )}
             </button>
           );
         })}
-        {isPending && (
-          <div className="absolute right-0 top-1/2 -translate-y-1/2">
-            <Spinner className="w-4 h-4 text-slate-400" />
-          </div>
-        )}
       </div>
 
       <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3">

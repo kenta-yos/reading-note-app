@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import type { NDLBook } from "@/lib/ndl";
 
 // 出版社ごとに異なる色を割り当てるための30色パレット（Tailwind クラスを完全文字列で列挙）
@@ -106,6 +107,30 @@ function bookLinkUrl(book: NDLBook): string | null {
   return book.ndlUrl;
 }
 
+function RegisterButton({ book }: { book: NDLBook }) {
+  const router = useRouter();
+  const handleRegister = () => {
+    const params = new URLSearchParams();
+    params.set("title", book.title);
+    if (book.author) params.set("author", book.author);
+    if (book.publisher) params.set("publisher", book.publisher);
+    if (book.issued) {
+      const year = parseInt(book.issued.slice(0, 4));
+      if (!isNaN(year)) params.set("publishedYear", String(year));
+    }
+    router.push(`/books/new?${params.toString()}`);
+  };
+  return (
+    <button
+      onClick={handleRegister}
+      aria-label="読みたいに登録"
+      className="flex-shrink-0 px-2 py-1 rounded text-[10px] font-medium bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-100 transition-colors"
+    >
+      + 登録
+    </button>
+  );
+}
+
 function BookRow({
   book,
   publisherColor,
@@ -188,13 +213,16 @@ function BookRow({
           )}
         </div>
       </div>
-      {onToggle && book.isbn && (
-        <BookmarkButton
-          isBookmarked={isBookmarked}
-          disabled={pending}
-          onClick={handleClick}
-        />
-      )}
+      <div className="flex items-center gap-1 flex-shrink-0">
+        <RegisterButton book={book} />
+        {onToggle && book.isbn && (
+          <BookmarkButton
+            isBookmarked={isBookmarked}
+            disabled={pending}
+            onClick={handleClick}
+          />
+        )}
+      </div>
     </div>
   );
 }
