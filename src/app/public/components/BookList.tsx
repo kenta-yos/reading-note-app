@@ -17,20 +17,12 @@ const PAGE_SIZE = 10;
 
 type Props = {
   books: PublicBook[];
-  filterYear: number | null;
-  filterDiscipline: string | null;
-  onYearChange: (year: number | null) => void;
-  onDisciplineChange: (discipline: string | null) => void;
 };
 
-export default function BookList({
-  books,
-  filterYear,
-  filterDiscipline,
-  onYearChange,
-  onDisciplineChange,
-}: Props) {
+export default function BookList({ books }: Props) {
   const [search, setSearch] = useState("");
+  const [filterYear, setFilterYear] = useState<number | null>(null);
+  const [filterDiscipline, setFilterDiscipline] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("readYear");
   const [sortAsc, setSortAsc] = useState(false);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -113,7 +105,7 @@ export default function BookList({
         <select
           value={filterYear ?? ""}
           onChange={(e) =>
-            onYearChange(e.target.value ? Number(e.target.value) : null)
+            setFilterYear(e.target.value ? Number(e.target.value) : null)
           }
           className="px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
         >
@@ -127,7 +119,7 @@ export default function BookList({
         <select
           value={filterDiscipline ?? ""}
           onChange={(e) =>
-            onDisciplineChange(e.target.value || null)
+            setFilterDiscipline(e.target.value || null)
           }
           className="px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
         >
