@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import DeleteButton from "@/components/DeleteButton";
 import ActionLink from "@/components/ActionLink";
+import BackButton from "@/components/BackButton";
 import StatusChanger from "@/components/StatusChanger";
 import { BookStatus } from "@/lib/types";
 
@@ -41,15 +42,7 @@ export default async function BookDetailPage({
     <div className="max-w-2xl mx-auto">
       {/* ナビゲーション: 戻る / 編集 / 削除 */}
       <div className="flex items-center justify-between mb-4">
-        <ActionLink
-          href="/books"
-          className="p-2 -ml-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-          spinnerClassName="w-5 h-5 text-slate-400"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-          </svg>
-        </ActionLink>
+        <BackButton />
         <div className="flex items-center gap-1">
           <ActionLink
             href={`/books/${id}/edit`}
@@ -72,7 +65,7 @@ export default async function BookDetailPage({
               href={bookUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-blue-600 transition-colors inline-flex items-center gap-1"
+              className="text-blue-600 hover:text-blue-800 underline decoration-blue-300 underline-offset-2 transition-colors inline-flex items-center gap-1"
             >
               {book.title}
               <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
