@@ -17,6 +17,7 @@ import {
   type NdlSearchQuery,
 } from "@/lib/ndl-search";
 import { searchPapersMultiple, type ScholarPaper } from "@/lib/semantic-scholar";
+import { safeJsonParse } from "@/lib/json-repair";
 
 export const maxDuration = 120;
 
@@ -110,14 +111,13 @@ export async function POST(req: Request) {
           queryMessage.content[0].type === "text"
             ? queryMessage.content[0].text
             : "";
-        const queryMatch = queryText.match(/\{[\s\S]*\}/);
-        if (!queryMatch) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const parsed = safeJsonParse<any>(queryText, /\{[\s\S]*\}/);
+        if (!parsed) {
           send("error", { error: "クエリ分析に失敗しました" });
           controller.close();
           return;
         }
-
-        const parsed = JSON.parse(queryMatch[0]);
 
         // If clarification needed, send questions back
         if (parsed.action === "clarify" && !answers) {
@@ -229,16 +229,15 @@ export async function POST(req: Request) {
           selectionMessage.content[0].type === "text"
             ? selectionMessage.content[0].text
             : "";
-        const selectionMatch = selectionText.match(/\[[\s\S]*\]/);
-        if (!selectionMatch) {
+        const recommendations = safeJsonParse<Recommendation[]>(
+          selectionText,
+          /\[[\s\S]*\]/
+        );
+        if (!recommendations) {
           send("error", { error: "選定に失敗しました" });
           controller.close();
           return;
         }
-
-        const recommendations: Recommendation[] = JSON.parse(
-          selectionMatch[0]
-        );
 
         // Attach openAccessPdfUrl
         const scholarByUrl = new Map<string, ScholarPaper & { searchIntent: string }>();
@@ -277,12 +276,11 @@ export async function POST(req: Request) {
             translationMessage.content[0].type === "text"
               ? translationMessage.content[0].text
               : "";
-          const translationMatch = translationText.match(/\[[\s\S]*\]/);
-          if (translationMatch) {
-            const translations = JSON.parse(translationMatch[0]) as {
+          const translations = safeJsonParse<{
               title_ja: string;
               reason_ja: string;
-            }[];
+            }[]>(translationText, /\[[\s\S]*\]/);
+          if (translations) {
             let ti = 0;
             for (const rec of recommendations) {
               if (rec.type === "paper" && ti < translations.length) {
