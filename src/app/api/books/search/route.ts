@@ -20,6 +20,7 @@ type GoogleBooksVolume = {
     description?: string;
     industryIdentifiers?: { type: string; identifier: string }[];
     imageLinks?: { smallThumbnail?: string; thumbnail?: string };
+    language?: string;
   };
 };
 
@@ -44,12 +45,14 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "q パラメータが必要です（2文字以上）" }, { status: 400 });
   }
 
-  // Google Books API（APIキー不要）
+  // Google Books API（日本語書籍を優先取得するため多めに取得してフィルタ）
   const url = new URL("https://www.googleapis.com/books/v1/volumes");
   url.searchParams.set("q", q);
-  url.searchParams.set("maxResults", "10");
-  url.searchParams.set("langRestrict", "ja");
+  url.searchParams.set("maxResults", "20");
   url.searchParams.set("printType", "books");
+  if (process.env.GOOGLE_BOOKS_API_KEY) {
+    url.searchParams.set("key", process.env.GOOGLE_BOOKS_API_KEY);
+  }
 
   const res = await fetch(url.toString());
   if (!res.ok) {
@@ -59,12 +62,28 @@ export async function GET(req: Request) {
   const data = await res.json();
   const items: GoogleBooksVolume[] = data.items ?? [];
 
+  // 日本語書籍を判定するヘルパー
+  const isJapanese = (vol: GoogleBooksVolume["volumeInfo"]) => {
+    if (!vol) return false;
+    if (vol.language === "ja") return true;
+    // language未設定でも日本語文字を含むなら日本語書籍とみなす
+    const text = `${vol.title ?? ""}${vol.authors?.join("") ?? ""}${vol.publisher ?? ""}`;
+    return /[\u3000-\u9FFF\uF900-\uFAFF]/.test(text);
+  };
+
+  // 日本語書籍を優先してソート
+  const sorted = [...items].sort((a, b) => {
+    const aJa = isJapanese(a.volumeInfo) ? 0 : 1;
+    const bJa = isJapanese(b.volumeInfo) ? 0 : 1;
+    return aJa - bJa;
+  });
+
   // ISBN で重複排除しつつ候補を抽出（最大8件）
   const candidates: Candidate[] = [];
   const candidateIsbns: (string | null)[] = [];
   const seenIsbns = new Set<string>();
 
-  for (const item of items) {
+  for (const item of sorted) {
     if (candidates.length >= 8) break;
     const vol = item.volumeInfo;
     if (!vol?.title) continue;
@@ -107,6 +126,7 @@ export async function GET(req: Request) {
 
         const pagesMap: Record<string, number> = {};
         const descMap: Record<string, string> = {};
+        const publisherMap: Record<string, string> = {};
 
         for (const entry of openBDData) {
           if (!entry) continue;
@@ -116,6 +136,19 @@ export async function GET(req: Request) {
           if (entry.summary?.pages) {
             const p = parseInt(entry.summary.pages, 10);
             if (!isNaN(p) && p > 0) pagesMap[isbn] = p;
+          }
+
+          if (entry.summary?.publisher) {
+            publisherMap[isbn] = entry.summary.publisher;
+          }
+
+          // ページ数を onix からも取得（extent）
+          const extents: Array<{ ExtentType?: string; ExtentValue?: string }> =
+            entry.onix?.DescriptiveDetail?.Extent ?? [];
+          const pageExtent = extents.find((e) => e.ExtentType === "11");
+          if (pageExtent?.ExtentValue) {
+            const p = parseInt(pageExtent.ExtentValue, 10);
+            if (!isNaN(p) && p > 0 && !pagesMap[isbn]) pagesMap[isbn] = p;
           }
 
           const textContents: Array<{ TextType?: string; Text?: string }> =
@@ -131,6 +164,9 @@ export async function GET(req: Request) {
           if (!isbn) continue;
           if (candidates[i].pages === null && pagesMap[isbn]) {
             candidates[i].pages = pagesMap[isbn];
+          }
+          if (!candidates[i].publisherName && publisherMap[isbn]) {
+            candidates[i].publisherName = publisherMap[isbn];
           }
           if (descMap[isbn]) {
             candidates[i].description = descMap[isbn];
