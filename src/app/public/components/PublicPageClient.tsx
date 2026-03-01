@@ -2,12 +2,10 @@
 
 import { useState } from "react";
 import type { ConceptGraphData } from "@/lib/concepts";
-import YearlyChart from "./YearlyChart";
 import CategoryChart from "./CategoryChart";
 import ConceptNetwork from "./ConceptNetwork";
 import BookList from "./BookList";
 
-type YearlyData = { year: number; count: number };
 type CategoryData = { category: string; count: number };
 type PublicBook = {
   title: string;
@@ -18,14 +16,12 @@ type PublicBook = {
 };
 
 type Props = {
-  yearlyData: YearlyData[];
   categoryData: CategoryData[];
   graphData: ConceptGraphData;
   bookList: PublicBook[];
 };
 
 export default function PublicPageClient({
-  yearlyData,
   categoryData,
   graphData,
   bookList,
@@ -35,13 +31,8 @@ export default function PublicPageClient({
 
   return (
     <>
-      {/* Charts grid */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
-        <YearlyChart
-          data={yearlyData}
-          selectedYear={filterYear}
-          onYearClick={setFilterYear}
-        />
+      {/* Category Chart */}
+      <section className="mb-12">
         <CategoryChart
           data={categoryData}
           selectedCategory={filterCategory}

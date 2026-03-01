@@ -2,10 +2,6 @@ import { prisma } from "@/lib/prisma";
 import { getConceptGraph } from "@/lib/concepts";
 import PublicHeader from "./components/PublicHeader";
 import StatCards from "./components/StatCards";
-import YearlyChart from "./components/YearlyChart";
-import CategoryChart from "./components/CategoryChart";
-import ConceptNetwork from "./components/ConceptNetwork";
-import BookList from "./components/BookList";
 import PublicPageClient from "./components/PublicPageClient";
 
 export const revalidate = 3600; // ISR: 1 hour
@@ -35,16 +31,6 @@ export default async function PublicPage() {
     .sort((a, b) => a - b);
   const minYear = readDates[0] ?? new Date().getFullYear();
   const maxYear = readDates[readDates.length - 1] ?? new Date().getFullYear();
-
-  // Year-by-year counts
-  const yearCountMap = new Map<number, number>();
-  for (const b of books) {
-    const y = b.readAt!.getFullYear();
-    yearCountMap.set(y, (yearCountMap.get(y) ?? 0) + 1);
-  }
-  const yearlyData = [...yearCountMap.entries()]
-    .sort((a, b) => a[0] - b[0])
-    .map(([year, count]) => ({ year, count }));
 
   // Category counts
   const catCountMap = new Map<string, number>();
@@ -79,7 +65,6 @@ export default async function PublicPage() {
       </section>
 
       <PublicPageClient
-        yearlyData={yearlyData}
         categoryData={categoryData}
         graphData={graphData}
         bookList={bookList}
@@ -94,10 +79,10 @@ export default async function PublicPage() {
           href="https://my-reading-assistant.vercel.app"
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-white text-sm font-medium transition-all hover:scale-105 shadow-md"
+          className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-white text-sm font-medium transition-all hover:opacity-85 shadow-md"
           style={{ backgroundColor: "#1a5276" }}
         >
-          Lukaで読書準備する →
+          Lukaで読書準備する
         </a>
       </footer>
     </div>
