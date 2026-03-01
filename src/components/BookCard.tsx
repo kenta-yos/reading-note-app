@@ -11,7 +11,7 @@ type BookCardProps = {
   author: string | null;
   publisher: string | null;
   publishedYear: number | null;
-  pages: number;
+  pages: number | null;
   category: string | null;
   rating: number | null;
   status: BookStatus;
@@ -77,7 +77,7 @@ export default function BookCard({
             </span>
           )}
         </div>
-        <span className="text-xs text-slate-400">{pages} P</span>
+        {pages && <span className="text-xs text-slate-400">{pages} P</span>}
       </div>
       {status === "READ" && readAt ? (
         <p className="text-xs text-slate-400 mt-2">

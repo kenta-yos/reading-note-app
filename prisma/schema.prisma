@@ -20,7 +20,8 @@ model Book {
   author        String?
   publisher     String?
   publishedYear Int?
-  pages         Int
+  isbn          String?
+  pages         Int?
   category      String?
   discipline    String?
   rating        Int?

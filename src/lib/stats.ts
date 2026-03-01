@@ -38,13 +38,13 @@ export async function getStatsForAllYears(): Promise<StatsResponse> {
   const books = await prisma.book.findMany({ orderBy: { readAt: "asc" } });
 
   const totalBooks = books.length;
-  const totalPages = books.reduce((sum, b) => sum + b.pages, 0);
+  const totalPages = books.reduce((sum, b) => sum + (b.pages ?? 0), 0);
 
   const categoryMap = new Map<string, { pages: number; count: number }>();
   for (const book of books) {
     const cat = book.category ?? "その他";
     const prev = categoryMap.get(cat) ?? { pages: 0, count: 0 };
-    categoryMap.set(cat, { pages: prev.pages + book.pages, count: prev.count + 1 });
+    categoryMap.set(cat, { pages: prev.pages + (book.pages ?? 0), count: prev.count + 1 });
   }
   const categoryTotals: CategoryTotal[] = Array.from(categoryMap.entries()).map(
     ([category, { pages, count }]) => ({ category, pages, count })
@@ -78,7 +78,7 @@ export async function getStatsForYear(year: number): Promise<StatsResponse> {
   ]);
 
   const totalBooks = books.length;
-  const totalPages = books.reduce((sum, b) => sum + b.pages, 0);
+  const totalPages = books.reduce((sum, b) => sum + (b.pages ?? 0), 0);
 
   // Monthly pages
   const monthlyMap = new Map<number, number>();
@@ -86,7 +86,7 @@ export async function getStatsForYear(year: number): Promise<StatsResponse> {
   for (const book of books) {
     if (book.readAt) {
       const month = book.readAt.getMonth() + 1;
-      monthlyMap.set(month, (monthlyMap.get(month) ?? 0) + book.pages);
+      monthlyMap.set(month, (monthlyMap.get(month) ?? 0) + (book.pages ?? 0));
     }
   }
   const monthlyPages: MonthlyPages[] = Array.from(monthlyMap.entries()).map(
@@ -98,7 +98,7 @@ export async function getStatsForYear(year: number): Promise<StatsResponse> {
   for (const book of books) {
     const cat = book.category ?? "その他";
     const prev = categoryMap.get(cat) ?? { pages: 0, count: 0 };
-    categoryMap.set(cat, { pages: prev.pages + book.pages, count: prev.count + 1 });
+    categoryMap.set(cat, { pages: prev.pages + (book.pages ?? 0), count: prev.count + 1 });
   }
   const categoryTotals: CategoryTotal[] = Array.from(categoryMap.entries()).map(
     ([category, { pages, count }]) => ({ category, pages, count })
@@ -112,7 +112,7 @@ export async function getStatsForYear(year: number): Promise<StatsResponse> {
       const month = book.readAt.getMonth() + 1;
       const cat = book.category ?? "その他";
       const entry = monthlyCatMap.get(month)!;
-      entry[cat] = (entry[cat] ?? 0) + book.pages;
+      entry[cat] = (entry[cat] ?? 0) + (book.pages ?? 0);
     }
   }
   const monthlyByCategory: MonthlyByCategory[] = Array.from(
@@ -145,7 +145,7 @@ export async function getCategoryEvolution(): Promise<CategoryEvolutionData> {
     const cat  = book.category ?? "その他";
     if (!yearCatMap.has(year)) yearCatMap.set(year, new Map());
     const catMap = yearCatMap.get(year)!;
-    catMap.set(cat, (catMap.get(cat) ?? 0) + book.pages);
+    catMap.set(cat, (catMap.get(cat) ?? 0) + (book.pages ?? 0));
   }
 
   // 全年度合計でランキング
@@ -188,10 +188,10 @@ export async function getDisciplineEvolution(): Promise<DisciplineEvolutionData>
     const disc = book.discipline ?? "未分類";
     if (!yearDiscMap.has(year)) yearDiscMap.set(year, new Map());
     const discMap = yearDiscMap.get(year)!;
-    discMap.set(disc, (discMap.get(disc) ?? 0) + book.pages);
+    discMap.set(disc, (discMap.get(disc) ?? 0) + (book.pages ?? 0));
 
     const prev = globalTotals.get(disc) ?? { pages: 0, count: 0 };
-    globalTotals.set(disc, { pages: prev.pages + book.pages, count: prev.count + 1 });
+    globalTotals.set(disc, { pages: prev.pages + (book.pages ?? 0), count: prev.count + 1 });
   }
 
   const allDiscs = [...globalTotals.entries()].sort((a, b) => b[1].pages - a[1].pages);
@@ -232,7 +232,7 @@ export async function getDisciplineTotals(): Promise<DisciplineTotal[]> {
     const disc = book.discipline;
     if (!disc || disc === "未分類") continue;
     const prev = map.get(disc) ?? { pages: 0, count: 0 };
-    map.set(disc, { pages: prev.pages + book.pages, count: prev.count + 1 });
+    map.set(disc, { pages: prev.pages + (book.pages ?? 0), count: prev.count + 1 });
   }
 
   return [...map.entries()]
@@ -421,7 +421,7 @@ export async function getYearlyTrend(): Promise<
 
   for (const book of books) {
     const year = book.readAt!.getFullYear();
-    yearMap.set(year, (yearMap.get(year) ?? 0) + book.pages);
+    yearMap.set(year, (yearMap.get(year) ?? 0) + (book.pages ?? 0));
   }
 
   return [...yearMap.entries()]

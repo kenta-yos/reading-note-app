@@ -12,7 +12,7 @@ type BookData = {
   author: string | null;
   publisher: string | null;
   publishedYear: number | null;
-  pages: number;
+  pages: number | null;
   category: string | null;
   rating: number | null;
   status: string;

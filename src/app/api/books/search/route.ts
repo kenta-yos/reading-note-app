@@ -8,6 +8,7 @@ type Candidate = {
   pages: number | null;
   description: string | null;
   thumbnail: string | null;
+  isbn: string | null;
 };
 
 type GoogleBooksVolume = {
@@ -141,6 +142,7 @@ export async function GET(req: Request) {
       pages: vol.pageCount && vol.pageCount > 0 ? vol.pageCount : null,
       description: vol.description ?? null,
       thumbnail: thumbnail ? thumbnail.replace(/^http:/, "https:") : null,
+      isbn,
     });
     candidateIsbns.push(isbn);
   }

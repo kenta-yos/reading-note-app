@@ -57,7 +57,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { title, author, publisher, publishedYear, pages, category, discipline, rating, description, notes, readAt, status } = body;
+    const { title, author, publisher, publishedYear, isbn, pages, category, discipline, rating, description, notes, readAt, status } = body;
 
     const bookStatus = (status as PrismaBookStatus) || "READ";
 
@@ -73,7 +73,8 @@ export async function POST(req: Request) {
         author: author || null,
         publisher: publisher || null,
         publishedYear: publishedYear ? Number(publishedYear) : null,
-        pages: Number(pages),
+        isbn: isbn || null,
+        pages: pages ? Number(pages) : null,
         category: category || null,
         discipline: discipline || null,
         rating: rating ? Number(rating) : null,

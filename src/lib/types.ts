@@ -16,7 +16,8 @@ export type Book = {
   author: string | null;
   publisher: string | null;
   publishedYear: number | null;
-  pages: number;
+  isbn: string | null;
+  pages: number | null;
   category: string | null;
   discipline: string | null;
   rating: number | null;

@@ -17,7 +17,7 @@ type PublicBook = {
   category: string | null;
   discipline: string | null;
   readYear: number;
-  pageCount: number;
+  pageCount: number | null;
 };
 
 type Props = {

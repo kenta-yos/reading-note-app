@@ -17,6 +17,7 @@ export default async function BookEditPage({
 
   const typedBook: Book = {
     ...book,
+    isbn: book.isbn,
     discipline: book.discipline,
     readAt: book.readAt,
   };

@@ -33,7 +33,7 @@ export default async function PublicPage() {
 
   // Compute stats
   const totalBooks = books.length;
-  const totalPages = books.reduce((sum, b) => sum + b.pages, 0);
+  const totalPages = books.reduce((sum, b) => sum + (b.pages ?? 0), 0);
   const readDates = books
     .map((b) => b.readAt!.getFullYear())
     .sort((a, b) => a - b);

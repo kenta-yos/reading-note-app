@@ -19,7 +19,7 @@ export async function PUT(
   const { id } = await params;
   try {
     const body = await req.json();
-    const { title, author, publisher, publishedYear, pages, category, discipline, rating, description, notes, readAt, status } = body;
+    const { title, author, publisher, publishedYear, isbn, pages, category, discipline, rating, description, notes, readAt, status } = body;
 
     // 変更前のBookを取得してステータス比較
     const existingBook = await prisma.book.findUnique({ where: { id } });
@@ -49,7 +49,8 @@ export async function PUT(
         author: author || null,
         publisher: publisher || null,
         publishedYear: publishedYear ? Number(publishedYear) : null,
-        pages: Number(pages),
+        isbn: isbn || null,
+        pages: pages ? Number(pages) : null,
         category: category || null,
         discipline: discipline || null,
         rating: rating ? Number(rating) : null,

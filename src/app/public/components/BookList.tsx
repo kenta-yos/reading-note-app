@@ -8,7 +8,7 @@ type PublicBook = {
   category: string | null;
   discipline: string | null;
   readYear: number;
-  pageCount: number;
+  pageCount: number | null;
 };
 
 type SortKey = "readYear" | "title" | "author";
@@ -184,7 +184,7 @@ export default function BookList({ books }: Props) {
                   {b.readYear}
                 </td>
                 <td className="py-2 px-2 text-right text-slate-400 tabular-nums">
-                  {b.pageCount.toLocaleString()}
+                  {b.pageCount ? b.pageCount.toLocaleString() : "—"}
                 </td>
               </tr>
             ))}
@@ -205,9 +205,11 @@ export default function BookList({ books }: Props) {
             <div className="flex items-center gap-2 text-xs text-slate-500">
               {b.author && <span>{b.author}</span>}
               <span className="tabular-nums">{b.readYear}年</span>
-              <span className="tabular-nums text-slate-400">
-                {b.pageCount.toLocaleString()}P
-              </span>
+              {b.pageCount && (
+                <span className="tabular-nums text-slate-400">
+                  {b.pageCount.toLocaleString()}P
+                </span>
+              )}
             </div>
             {b.discipline && b.discipline !== "未分類" && (
               <span className="inline-block mt-1.5 px-2 py-0.5 text-xs rounded-full bg-slate-100 text-slate-600">

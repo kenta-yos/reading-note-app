@@ -18,6 +18,7 @@ type BookCandidate = {
   pages: number | null;
   description: string | null;
   thumbnail: string | null;
+  isbn: string | null;
 };
 
 type BookFormProps = {
@@ -27,6 +28,7 @@ type BookFormProps = {
     author?: string;
     publisher?: string;
     publishedYear?: number;
+    isbn?: string;
     pages?: number;
     category?: string;
     discipline?: string;
@@ -49,6 +51,7 @@ export default function BookForm({ initialData = {}, mode = "create", returnStat
   const [author, setAuthor] = useState(initialData.author ?? "");
   const [publisher, setPublisher] = useState(initialData.publisher ?? "");
   const [publishedYear, setPublishedYear] = useState(String(initialData.publishedYear ?? ""));
+  const [isbn, setIsbn] = useState(initialData.isbn ?? "");
   const [pages, setPages] = useState(String(initialData.pages ?? ""));
   const [category, setCategory] = useState(initialData.category ?? "");
   const [discipline, setDiscipline] = useState(initialData.discipline ?? "");
@@ -93,6 +96,7 @@ export default function BookForm({ initialData = {}, mode = "create", returnStat
     setAuthor(candidate.author);
     setPublisher(candidate.publisherName);
     setPublishedYear(String(candidate.publishedYear ?? ""));
+    if (candidate.isbn) setIsbn(candidate.isbn);
     if (candidate.pages) setPages(String(candidate.pages));
     setDescription(candidate.description ?? "");
     setCandidates([]);
@@ -189,7 +193,8 @@ export default function BookForm({ initialData = {}, mode = "create", returnStat
       author,
       publisher,
       publishedYear: publishedYear ? Number(publishedYear) : null,
-      pages: Number(pages),
+      isbn: isbn || null,
+      pages: pages ? Number(pages) : null,
       category: category || null,
       discipline: discipline || null,
       rating: rating ? Number(rating) : null,
@@ -400,7 +405,7 @@ export default function BookForm({ initialData = {}, mode = "create", returnStat
       <div className={`grid grid-cols-1 ${status === "READ" ? "sm:grid-cols-2" : ""} gap-4`}>
         <div>
           <label className="block text-sm font-medium text-slate-600 mb-1">
-            ページ数 <span className="text-red-500">*</span>
+            ページ数
           </label>
           <input
             type="number"
@@ -409,7 +414,6 @@ export default function BookForm({ initialData = {}, mode = "create", returnStat
             placeholder="450"
             min="1"
             className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-            required
           />
         </div>
 
