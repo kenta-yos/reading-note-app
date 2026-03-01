@@ -41,7 +41,7 @@ export default function DisciplineChart({ data }: Props) {
                   backgroundColor: COLORS[i % COLORS.length],
                 }}
               />
-              <span className="text-xs text-slate-600 w-28 truncate shrink-0">
+              <span className="text-xs text-slate-600 whitespace-nowrap shrink-0">
                 {d.discipline}
               </span>
               <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
