@@ -16,7 +16,7 @@ export default function BarcodeScanner({ onScan, onClose }: Props) {
   const [cameraError, setCameraError] = useState("");
   const [initializing, setInitializing] = useState(true);
   const [manualIsbn, setManualIsbn] = useState("");
-  const [autoDetect, setAutoDetect] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const scannedRef = useRef(false);
 
   const stopCamera = useCallback(() => {
@@ -50,10 +50,9 @@ export default function BarcodeScanner({ onScan, onClose }: Props) {
 
   useEffect(() => {
     let mounted = true;
-    let animFrameId: number;
+    let intervalId: ReturnType<typeof setInterval>;
 
     async function startScanner() {
-      // カメラ起動を試みる
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -70,34 +69,42 @@ export default function BarcodeScanner({ onScan, onClose }: Props) {
         await video.play();
         if (mounted) setInitializing(false);
 
-        // BarcodeDetector があれば自動検出を開始
-        if ("BarcodeDetector" in window) {
-          if (mounted) setAutoDetect(true);
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const detector = new (window as any).BarcodeDetector({ formats: ["ean_13"] });
-
-          const scan = async () => {
-            if (!mounted || scannedRef.current) return;
-            try {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const barcodes: any[] = await detector.detect(video);
-              for (const barcode of barcodes) {
-                const cleaned = barcode.rawValue?.replace(/[^0-9]/g, "") ?? "";
-                if (/^97[89]\d{10}$/.test(cleaned)) {
-                  scannedRef.current = true;
-                  stream.getTracks().forEach((t) => t.stop());
-                  streamRef.current = null;
-                  onScanRef.current(cleaned);
-                  return;
-                }
-              }
-            } catch {
-              // detect can fail on some frames
-            }
-            animFrameId = requestAnimationFrame(scan);
-          };
-          setTimeout(scan, 500);
+        // BarcodeDetector: ネイティブ or ポリフィル
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let DetectorClass: any = (window as any).BarcodeDetector;
+        if (!DetectorClass) {
+          try {
+            const mod = await import("barcode-detector/pure");
+            DetectorClass = mod.BarcodeDetector;
+          } catch {
+            // ポリフィルも使えない場合は手入力のみ
+            return;
+          }
         }
+
+        if (mounted) setScanning(true);
+        const detector = new DetectorClass({ formats: ["ean_13"] });
+
+        // 200ms間隔でスキャン
+        intervalId = setInterval(async () => {
+          if (!mounted || scannedRef.current || video.readyState < 2) return;
+          try {
+            const barcodes = await detector.detect(video);
+            for (const barcode of barcodes) {
+              const cleaned = (barcode.rawValue ?? "").replace(/[^0-9]/g, "");
+              if (/^97[89]\d{10}$/.test(cleaned)) {
+                scannedRef.current = true;
+                clearInterval(intervalId);
+                stream.getTracks().forEach((t) => t.stop());
+                streamRef.current = null;
+                onScanRef.current(cleaned);
+                return;
+              }
+            }
+          } catch {
+            // detect can fail on some frames
+          }
+        }, 200);
       } catch (err) {
         if (mounted) {
           setInitializing(false);
@@ -115,7 +122,7 @@ export default function BarcodeScanner({ onScan, onClose }: Props) {
     return () => {
       mounted = false;
       scannedRef.current = true;
-      cancelAnimationFrame(animFrameId);
+      clearInterval(intervalId);
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
@@ -164,7 +171,7 @@ export default function BarcodeScanner({ onScan, onClose }: Props) {
                 <div className="w-64 h-20 border-2 border-white/60 rounded-lg" />
               </div>
             )}
-            {!initializing && autoDetect && (
+            {!initializing && scanning && (
               <div className="absolute bottom-2 left-0 right-0 text-center">
                 <span className="text-[10px] bg-black/50 text-white px-2 py-0.5 rounded-full">
                   自動検出中...
@@ -180,14 +187,12 @@ export default function BarcodeScanner({ onScan, onClose }: Props) {
           </div>
         )}
 
-        {/* ISBN 手入力（常に表示） */}
+        {/* ISBN 手入力 */}
         <div className="px-4 py-3 border-t border-slate-200">
           <p className="text-xs text-slate-500 mb-2">
-            {cameraError
-              ? "書籍裏面のISBN番号を入力してください"
-              : autoDetect
-                ? "バーコードにカメラを向けるか、ISBN番号を入力"
-                : "バーコード下のISBN番号を入力してください"}
+            {scanning
+              ? "バーコードにカメラを向けるか、ISBN番号を入力"
+              : "バーコード下のISBN番号を入力してください"}
           </p>
           <div className="flex gap-2">
             <input

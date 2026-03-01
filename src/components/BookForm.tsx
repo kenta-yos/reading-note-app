@@ -59,7 +59,6 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
   const [searchError, setSearchError] = useState("");
   const [candidates, setCandidates] = useState<BookCandidate[]>([]);
   const candidateRef = useRef<HTMLDivElement>(null);
-  const isComposing = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showScanner, setShowScanner] = useState(false);
@@ -156,10 +155,8 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
       }
 
       debounceRef.current = setTimeout(() => {
-        if (!isComposing.current) {
-          doSearch(value.trim());
-        }
-      }, 500);
+        doSearch(value.trim());
+      }, 600);
     },
     [doSearch]
   );
@@ -262,11 +259,6 @@ export default function BookForm({ initialData = {}, mode = "create" }: BookForm
               type="text"
               value={searchQuery}
               onChange={(e) => handleSearchInput(e.target.value)}
-              onCompositionStart={() => { isComposing.current = true; }}
-              onCompositionEnd={(e) => {
-                isComposing.current = false;
-                handleSearchInput((e.target as HTMLInputElement).value);
-              }}
               placeholder="タイトル、著者名、出版社で検索..."
               className="w-full p-2.5 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white placeholder:text-slate-400"
             />
