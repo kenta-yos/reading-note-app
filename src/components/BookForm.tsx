@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import Spinner from "./Spinner";
-import BottomSheet from "./ui/BottomSheet";
 import { DISCIPLINES } from "@/lib/disciplines";
 import { BOOK_STATUSES, BookStatus, STATUS_FLOW } from "@/lib/types";
 
@@ -67,16 +66,6 @@ export default function BookForm({ initialData = {}, mode = "create", returnStat
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showScanner, setShowScanner] = useState(false);
-
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 1023px)");
-    setIsMobile(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
 
   useEffect(() => {
     fetch("/api/categories")
@@ -291,8 +280,7 @@ export default function BookForm({ initialData = {}, mode = "create", returnStat
           {searchError && (
             <p className="text-sm text-amber-600 mt-2">{searchError}</p>
           )}
-          {/* Desktop: inline candidates */}
-          {candidates.length > 0 && !isMobile && (
+          {candidates.length > 0 && (
             <div
               ref={candidateRef}
               className="mt-2 border border-blue-200 rounded-lg bg-white shadow-md overflow-hidden"
@@ -332,46 +320,6 @@ export default function BookForm({ initialData = {}, mode = "create", returnStat
               ))}
             </div>
           )}
-
-          {/* Mobile: BottomSheet candidates */}
-          <BottomSheet
-            open={candidates.length > 0 && isMobile}
-            onClose={() => setCandidates([])}
-            title={`候補を選択（${candidates.length}件）`}
-          >
-            <div className="p-2">
-              {candidates.map((c, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => applyCandidate(c)}
-                  className="w-full text-left px-3 py-3 active:bg-blue-50 transition rounded-xl flex gap-3 items-start"
-                >
-                  {c.thumbnail ? (
-                    <Image
-                      src={c.thumbnail}
-                      alt=""
-                      width={48}
-                      height={64}
-                      className="rounded shadow-sm flex-shrink-0 object-cover"
-                      unoptimized
-                    />
-                  ) : (
-                    <div className="w-[48px] h-[64px] bg-slate-200 rounded flex-shrink-0 flex items-center justify-center">
-                      <span className="text-slate-400 text-xs">No Image</span>
-                    </div>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-slate-800 truncate">{c.title}</p>
-                    <p className="text-xs text-slate-600 truncate">{c.author}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      {[c.publisherName, c.publishedYear ? `${c.publishedYear}年` : "", c.pages ? `${c.pages}p` : ""].filter(Boolean).join(" / ")}
-                    </p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </BottomSheet>
         </div>
       )}
 
