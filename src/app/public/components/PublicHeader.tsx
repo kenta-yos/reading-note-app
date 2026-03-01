@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 
 const JOURNEY_TEXT =
-  "教育社会学→家族社会学→フェミニズム→クィア→障害→人種・エスニシティ→質的社会調査→政治哲学・法哲学→日本政治・国際政治";
+  "労働法→教育社会学→家族社会学→フェミニズム→クィア→障害→人種・エスニシティ→質的社会調査→政治哲学・法哲学→日本政治・国際政治";
 
 export default function PublicHeader() {
   const [displayed, setDisplayed] = useState("");
