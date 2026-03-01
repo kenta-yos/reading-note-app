@@ -12,10 +12,11 @@ export type ScholarPaper = {
   abstract: string | null;
   url: string;
   citationCount: number | null;
+  openAccessPdfUrl: string | null;
 };
 
 const BASE_URL = "https://api.semanticscholar.org/graph/v1";
-const FIELDS = "paperId,title,authors,year,abstract,url,citationCount";
+const FIELDS = "paperId,title,authors,year,abstract,url,citationCount,openAccessPdf";
 
 async function fetchWithRetry(url: string, retries = 1): Promise<Response> {
   try {
@@ -58,6 +59,7 @@ export async function searchPapers(
       abstract?: string;
       url?: string;
       citationCount?: number;
+      openAccessPdf?: { url: string } | null;
     }) => ({
       paperId: p.paperId,
       title: p.title,
@@ -66,6 +68,7 @@ export async function searchPapers(
       abstract: p.abstract ?? null,
       url: p.url ?? `https://www.semanticscholar.org/paper/${p.paperId}`,
       citationCount: p.citationCount ?? null,
+      openAccessPdfUrl: p.openAccessPdf?.url ?? null,
     })
   );
 }

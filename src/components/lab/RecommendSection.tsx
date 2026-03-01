@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useCallback } from "react";
 import RecommendCard from "./RecommendCard";
+import NaturalSearchInput from "./NaturalSearchInput";
 
 type Recommendation = {
   type: "book" | "paper";
-  intent: "deepen" | "broaden";
   title: string;
   titleJa?: string;
   author: string;
@@ -13,6 +13,7 @@ type Recommendation = {
   year: string;
   isbn?: string;
   url?: string;
+  openAccessPdfUrl?: string;
   reason: string;
   reasonJa?: string;
 };
@@ -20,6 +21,8 @@ type Recommendation = {
 type SessionData = {
   id: string;
   recommendations: Recommendation[];
+  searchType?: string;
+  userQuery?: string;
   createdAt: string;
 };
 
@@ -91,15 +94,8 @@ export default function RecommendSection({ history }: Props) {
   const latest = current || history[0] || null;
   const pastHistory = current ? history : history.slice(1);
 
-  const handleRecommend = useCallback(async () => {
-    if (step !== "idle") return;
-    setStep("preparing");
-    setError(null);
-    setMessage("読書データを準備中…");
-
-    try {
-      const res = await fetch("/api/lab/recommend", { method: "POST" });
-
+  const processSSE = useCallback(
+    async (res: Response) => {
       if (!res.body) {
         setError("ストリームを取得できませんでした");
         setStep("idle");
@@ -146,39 +142,59 @@ export default function RecommendSection({ history }: Props) {
           }
         }
       }
+    },
+    []
+  );
+
+  const handleRecommend = useCallback(async () => {
+    if (step !== "idle") return;
+    setStep("preparing");
+    setError(null);
+    setMessage("読書データを準備中…");
+
+    try {
+      const res = await fetch("/api/lab/recommend", { method: "POST" });
+      await processSSE(res);
     } catch {
       setError("通信エラーが発生しました");
       setStep("idle");
     }
-  }, [step]);
+  }, [step, processSSE]);
+
+  const handleSearchResult = useCallback(
+    (session: SessionData) => {
+      setCurrent(session);
+    },
+    []
+  );
 
   const loading = step !== "idle";
 
   const renderRecommendations = (recs: Recommendation[]) => {
-    const deepenRecs = recs.filter((r) => r.intent === "deepen");
-    const broadenRecs = recs.filter((r) => r.intent === "broaden");
+    const bookRecs = recs.filter((r) => r.type === "book");
+    const paperRecs = recs.filter((r) => r.type === "paper");
 
     return (
       <div className="space-y-6">
-        {deepenRecs.length > 0 && (
+        {bookRecs.length > 0 && (
           <div>
-            <h3 className="text-sm font-semibold text-emerald-700 mb-3">
-              深める
+            <h3 className="text-sm font-semibold text-amber-700 mb-3">
+              書籍（{bookRecs.length}冊）
             </h3>
             <div className="space-y-3">
-              {deepenRecs.map((rec, i) => (
+              {bookRecs.map((rec, i) => (
                 <RecommendCard key={i} rec={rec} />
               ))}
             </div>
           </div>
         )}
-        {broadenRecs.length > 0 && (
+        {paperRecs.length > 0 && (
           <div>
-            <h3 className="text-sm font-semibold text-violet-700 mb-3">
-              広げる
+            <h3 className="text-sm font-semibold text-sky-700 mb-3">
+              論文（{paperRecs.length}本）
             </h3>
             <div className="space-y-3">
-              {broadenRecs.map((rec, i) => (
+              {paperRecs.map((rec, i) => (
                 <RecommendCard key={i} rec={rec} />
               ))}
             </div>
@@ -201,12 +217,15 @@ export default function RecommendSection({ history }: Props) {
         </div>
       </div>
 
+      {/* 自然文検索 */}
+      <NaturalSearchInput onResult={handleSearchResult} disabled={loading} />
+
       {/* おすすめボタン */}
       <button
         onClick={handleRecommend}
         disabled={loading}
         className={[
-          "w-full rounded-lg border-2 border-dashed px-4 py-3 text-sm font-medium transition-colors",
+          "w-full rounded-lg border-2 border-dashed px-4 py-3 text-sm font-medium transition-colors mt-3",
           loading
             ? "border-cyan-300 bg-cyan-50 text-cyan-700 cursor-not-allowed"
             : "border-cyan-300 bg-cyan-50/50 text-cyan-700 hover:border-cyan-400 hover:bg-cyan-50",
@@ -236,7 +255,7 @@ export default function RecommendSection({ history }: Props) {
             )}
           </span>
         ) : (
-          "おすすめを探す"
+          "自動でおすすめを探す"
         )}
       </button>
 
@@ -252,6 +271,11 @@ export default function RecommendSection({ history }: Props) {
             {new Date(latest.createdAt).getMonth() + 1}/
             {new Date(latest.createdAt).getDate()} 時点 /{" "}
             {latest.recommendations.length}件
+            {latest.userQuery && (
+              <span className="ml-2 text-slate-500">
+                検索: 「{latest.userQuery}」
+              </span>
+            )}
           </p>
           {renderRecommendations(latest.recommendations)}
         </div>
@@ -278,6 +302,11 @@ export default function RecommendSection({ history }: Props) {
                     {new Date(s.createdAt).getMonth() + 1}/
                     {new Date(s.createdAt).getDate()} /{" "}
                     {s.recommendations.length}件
+                    {s.userQuery && (
+                      <span className="ml-2 text-slate-500">
+                        検索: 「{s.userQuery}」
+                      </span>
+                    )}
                   </p>
                   {renderRecommendations(s.recommendations)}
                 </div>

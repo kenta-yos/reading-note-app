@@ -148,25 +148,21 @@ ${metadataText}
 
 ■ タスク
 この読者に次に読むべき本・論文を提案するための検索クエリを生成してください。
-
-「深める」= 既に関心のあるテーマをより深く掘り下げる
-「広げる」= 現在の関心と関連しつつも新しい視野を開く
+読書履歴全体の傾向を踏まえ、多角的な検索クエリを作成すること。
 
 ■ 出力JSON（これ以外のテキストを含めないでください）
 {
   "ndlQueries": [
-    { "keywords": ["キーワード1", "キーワード2"], "intent": "deepen", "description": "このクエリで探す内容" },
-    { "keywords": ["キーワード1", "キーワード2"], "intent": "broaden", "description": "このクエリで探す内容" }
+    { "keywords": ["キーワード1", "キーワード2"], "description": "このクエリで探す内容" }
   ],
   "scholarQueries": [
-    { "query": "English search query for academic papers", "intent": "deepen", "description": "このクエリで探す内容" },
-    { "query": "English search query for academic papers", "intent": "broaden", "description": "このクエリで探す内容" }
+    { "query": "English search query for academic papers", "description": "このクエリで探す内容" }
   ]
 }
 
 ■ 注意
-- ndlQueries: 日本語キーワード、deepenを3つ + broadenを3つ = 計6つ
-- scholarQueries: 英語クエリ、deepenを2つ + broadenを2つ = 計4つ
+- ndlQueries: 日本語キーワード、計5つ
+- scholarQueries: 英語クエリ、計5つ
 - キーワードは具体的に（例: 「社会学」だけでなく「構造的暴力 社会学」のように）
 - 読者がまだ読んでいない領域を意識すること
 - 新しい本・論文が見つかるようなクエリを優先すること`;
@@ -192,10 +188,9 @@ ${scholarCandidatesJson}
 ${titleList.join("\n")}
 
 ■ タスク
-1. 候補の中から8〜12件を選定（deepen 4〜6件 + broaden 4〜6件）
-2. 書籍と論文を混在させること
-3. 既読リストと重複するものは除外
-4. 全集、辞典、事典、ハンドブック、年鑑、白書、講座もの、雑誌は除外
+1. 書籍5冊 + 論文5本 = 計10件を選定すること（必ずこの件数を守ること）
+2. 既読リストと重複するものは除外
+3. 全集、辞典、事典、ハンドブック、年鑑、白書、講座もの、雑誌は除外
 
 ■ 選定の最優先基準：新しさ
 - 出版年が新しい本・論文を強く優先せよ（直近5年以内が理想）
@@ -206,7 +201,6 @@ ${titleList.join("\n")}
 [
   {
     "type": "book",
-    "intent": "deepen",
     "title": "本のタイトル",
     "author": "著者",
     "publisher": "出版社",
@@ -216,7 +210,6 @@ ${titleList.join("\n")}
   },
   {
     "type": "paper",
-    "intent": "broaden",
     "title": "Paper Title in English",
     "author": "Author Name",
     "year": "2023",
@@ -240,4 +233,95 @@ ${items.map((item, i) => `${i + 1}. title: ${item.title}\n   reason: ${item.reas
 [
   { "title_ja": "日本語タイトル", "reason_ja": "日本語の推薦理由" }
 ]`;
+}
+
+/**
+ * 自然文検索: クエリ分析プロンプト
+ */
+export function buildNaturalSearchQueryPrompt(
+  userQuery: string,
+  metadataText: string,
+  bookCount: number
+): string {
+  return `あなたは読書アドバイザーです。ユーザーが自然文で本・論文を探しています。
+
+■ ユーザーの検索クエリ
+「${userQuery}」
+
+■ 読者の読書履歴（${bookCount}冊）
+${metadataText}
+
+■ タスク
+ユーザーの検索意図を分析してください。
+
+1. クエリが十分明確な場合 → 検索クエリを生成
+2. クエリが曖昧で、より良い結果のために確認が必要な場合 → 確認質問を返却
+
+■ 出力JSON（これ以外のテキストを含めないでください）
+
+明確な場合:
+{
+  "action": "search",
+  "ndlQueries": [
+    { "keywords": ["キーワード1", "キーワード2"], "description": "このクエリで探す内容" }
+  ],
+  "scholarQueries": [
+    { "query": "English search query", "description": "このクエリで探す内容" }
+  ]
+}
+
+曖昧な場合:
+{
+  "action": "clarify",
+  "questions": [
+    { "id": "q1", "question": "確認したい質問", "options": ["選択肢1", "選択肢2", "選択肢3"] }
+  ]
+}
+
+■ 注意
+- ndlQueries: 5つ、scholarQueries: 5つ
+- 確認質問は最大3問まで
+- 読書履歴を踏まえた上で、ユーザーの意図を推測すること`;
+}
+
+/**
+ * 自然文検索: 確認回答後のクエリ生成プロンプト
+ */
+export function buildNaturalSearchQueryWithAnswersPrompt(
+  userQuery: string,
+  answers: { questionId: string; question: string; answer: string }[],
+  metadataText: string,
+  bookCount: number
+): string {
+  const answersText = answers
+    .map((a) => `Q: ${a.question}\nA: ${a.answer}`)
+    .join("\n\n");
+
+  return `あなたは読書アドバイザーです。ユーザーが自然文で本・論文を探しています。
+
+■ ユーザーの検索クエリ
+「${userQuery}」
+
+■ 確認質問への回答
+${answersText}
+
+■ 読者の読書履歴（${bookCount}冊）
+${metadataText}
+
+■ タスク
+ユーザーの検索意図と確認回答を踏まえて、検索クエリを生成してください。
+
+■ 出力JSON（これ以外のテキストを含めないでください）
+{
+  "ndlQueries": [
+    { "keywords": ["キーワード1", "キーワード2"], "description": "このクエリで探す内容" }
+  ],
+  "scholarQueries": [
+    { "query": "English search query", "description": "このクエリで探す内容" }
+  ]
+}
+
+■ 注意
+- ndlQueries: 5つ、scholarQueries: 5つ
+- 確認回答の内容を最大限反映すること`;
 }

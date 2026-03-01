@@ -1,13 +1,14 @@
 /**
- * POST /api/lab/recommend
- * おすすめSSE: クエリ生成 → NDL+Scholar検索 → AI選定 → 翻訳 → DB保存
+ * POST /api/lab/recommend/search
+ * 自然文検索SSE: クエリ分析 → (確認) → 検索 → 選定 → 翻訳 → 保存
  */
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/prisma";
 import { isCreditOrRateLimitError, getAnthropicErrorMessage } from "@/lib/anthropic-error";
 import {
   getBookMetadataForRecommend,
-  buildQueryGenerationPrompt,
+  buildNaturalSearchQueryPrompt,
+  buildNaturalSearchQueryWithAnswersPrompt,
   buildSelectionPrompt,
   buildTranslationPrompt,
 } from "@/lib/lab";
@@ -33,7 +34,19 @@ type Recommendation = {
   reasonJa?: string;
 };
 
-export async function POST() {
+type RequestBody = {
+  userQuery: string;
+  answers?: { questionId: string; question: string; answer: string }[];
+};
+
+export async function POST(req: Request) {
+  const body = (await req.json()) as RequestBody;
+  const { userQuery, answers } = body;
+
+  if (!userQuery?.trim()) {
+    return Response.json({ error: "検索クエリを入力してください" }, { status: 400 });
+  }
+
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
@@ -48,7 +61,7 @@ export async function POST() {
           apiKey: process.env.ANTHROPIC_API_KEY,
         });
 
-        // Step 0: preparing (0-5%)
+        // Step 0: preparing
         send("progress", {
           step: "preparing",
           percent: 3,
@@ -64,17 +77,29 @@ export async function POST() {
           return;
         }
 
-        // Step 1: generating_queries (5-15%)
+        // Step 1: analyze query
         send("progress", {
           step: "generating_queries",
           percent: 8,
-          message: "検索クエリを生成中…",
+          message: "検索意図を分析中…",
         });
 
-        const queryPrompt = buildQueryGenerationPrompt(
-          metadataText,
-          bookCount
-        );
+        let queryPrompt: string;
+        if (answers && answers.length > 0) {
+          queryPrompt = buildNaturalSearchQueryWithAnswersPrompt(
+            userQuery,
+            answers,
+            metadataText,
+            bookCount
+          );
+        } else {
+          queryPrompt = buildNaturalSearchQueryPrompt(
+            userQuery,
+            metadataText,
+            bookCount
+          );
+        }
+
         const queryMessage = await client.messages.create({
           model: "claude-sonnet-4-20250514",
           max_tokens: 2048,
@@ -87,14 +112,26 @@ export async function POST() {
             : "";
         const queryMatch = queryText.match(/\{[\s\S]*\}/);
         if (!queryMatch) {
-          send("error", { error: "クエリ生成に失敗しました" });
+          send("error", { error: "クエリ分析に失敗しました" });
           controller.close();
           return;
         }
 
-        const queries = JSON.parse(queryMatch[0]) as {
-          ndlQueries: NdlSearchQuery[];
-          scholarQueries: { query: string; description: string }[];
+        const parsed = JSON.parse(queryMatch[0]);
+
+        // If clarification needed, send questions back
+        if (parsed.action === "clarify" && !answers) {
+          send("clarify", {
+            questions: parsed.questions,
+          });
+          controller.close();
+          return;
+        }
+
+        // Extract queries (either from direct search or from answers flow)
+        const queries = {
+          ndlQueries: parsed.ndlQueries as NdlSearchQuery[],
+          scholarQueries: parsed.scholarQueries as { query: string; description: string }[],
         };
 
         send("progress", {
@@ -103,14 +140,13 @@ export async function POST() {
           message: `NDL ${queries.ndlQueries.length}件 + Scholar ${queries.scholarQueries.length}件のクエリを生成しました`,
         });
 
-        // Step 2: searching (15-45%) - NDL + Scholar 並列
+        // Step 2: searching
         send("progress", {
           step: "searching_ndl",
           percent: 20,
           message: "NDLで書籍を検索中…",
         });
 
-        // NDL queries don't need intent anymore - fill with empty string for compat
         const ndlQueriesWithIntent = queries.ndlQueries.map((q) => ({
           ...q,
           intent: q.intent || "",
@@ -144,7 +180,7 @@ export async function POST() {
           return;
         }
 
-        // Step 3: selecting (45-85%)
+        // Step 3: selecting
         send("progress", {
           step: "selecting",
           percent: 50,
@@ -204,7 +240,7 @@ export async function POST() {
           selectionMatch[0]
         );
 
-        // Attach openAccessPdfUrl from Scholar results to paper recommendations
+        // Attach openAccessPdfUrl
         const scholarByUrl = new Map<string, ScholarPaper & { searchIntent: string }>();
         for (const r of scholarResults) {
           scholarByUrl.set(r.url, r);
@@ -218,11 +254,8 @@ export async function POST() {
           }
         }
 
-        // Step 4: translating (85-92%)
-        const englishItems = recommendations.filter(
-          (r) => r.type === "paper"
-        );
-
+        // Step 4: translating
+        const englishItems = recommendations.filter((r) => r.type === "paper");
         if (englishItems.length > 0) {
           send("progress", {
             step: "translating",
@@ -231,18 +264,13 @@ export async function POST() {
           });
 
           const translationPrompt = buildTranslationPrompt(
-            englishItems.map((r) => ({
-              title: r.title,
-              reason: r.reason,
-            }))
+            englishItems.map((r) => ({ title: r.title, reason: r.reason }))
           );
 
           const translationMessage = await client.messages.create({
             model: "claude-haiku-4-5-20251001",
             max_tokens: 2048,
-            messages: [
-              { role: "user", content: translationPrompt },
-            ],
+            messages: [{ role: "user", content: translationPrompt }],
           });
 
           const translationText =
@@ -266,7 +294,7 @@ export async function POST() {
           }
         }
 
-        // Step 5: saving (92-98%)
+        // Step 5: saving
         send("progress", {
           step: "saving",
           percent: 95,
@@ -276,20 +304,21 @@ export async function POST() {
         const session = await prisma.recommendSession.create({
           data: {
             recommendations,
-            searchType: "auto",
+            searchType: "search",
+            userQuery,
           },
         });
 
         send("done", { id: session.id, recommendations });
         controller.close();
       } catch (error) {
-        console.error("[lab/recommend] failed:", error);
+        console.error("[lab/recommend/search] failed:", error);
         if (isCreditOrRateLimitError(error)) {
           send("error", { error: getAnthropicErrorMessage(error), creditError: true });
         } else {
           const message =
             error instanceof Error ? error.message : "不明なエラー";
-          send("error", { error: `推薦エラー: ${message}` });
+          send("error", { error: `検索エラー: ${message}` });
         }
         controller.close();
       }

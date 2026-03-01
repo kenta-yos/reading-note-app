@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
+import PaperTranslation from "./PaperTranslation";
+
 type Recommendation = {
   type: "book" | "paper";
-  intent: "deepen" | "broaden";
   title: string;
   titleJa?: string;
   author: string;
@@ -10,61 +12,48 @@ type Recommendation = {
   year: string;
   isbn?: string;
   url?: string;
+  openAccessPdfUrl?: string;
   reason: string;
   reasonJa?: string;
 };
 
 export default function RecommendCard({ rec }: { rec: Recommendation }) {
+  const [showTranslation, setShowTranslation] = useState(false);
   const displayTitle = rec.titleJa || rec.title;
   const displayReason = rec.reasonJa || rec.reason;
-  const isDeepen = rec.intent === "deepen";
+  const isBook = rec.type === "book";
+
+  // 版元ドットコムリンク (ISBN検索)
+  const hanmotoUrl = rec.isbn
+    ? `https://www.hanmoto.com/bd/isbn/${rec.isbn}`
+    : null;
 
   return (
     <div
       className={`border rounded-lg p-4 ${
-        isDeepen
-          ? "bg-emerald-50 border-emerald-100"
-          : "bg-violet-50 border-violet-100"
+        isBook
+          ? "bg-amber-50 border-amber-100"
+          : "bg-sky-50 border-sky-100"
       }`}
     >
       <div className="flex items-start gap-2 mb-2">
         <span
           className={`shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full ${
-            isDeepen
-              ? "bg-emerald-100 text-emerald-700"
-              : "bg-violet-100 text-violet-700"
-          }`}
-        >
-          {isDeepen ? "深める" : "広げる"}
-        </span>
-        <span
-          className={`shrink-0 text-xs px-2 py-0.5 rounded-full ${
-            rec.type === "book"
-              ? "bg-slate-100 text-slate-600"
+            isBook
+              ? "bg-amber-100 text-amber-700"
               : "bg-sky-100 text-sky-700"
           }`}
         >
-          {rec.type === "book" ? "書籍" : "論文"}
+          {isBook ? "書籍" : "論文"}
         </span>
       </div>
 
       <p
         className={`text-sm font-semibold mb-1 ${
-          isDeepen ? "text-emerald-900" : "text-violet-900"
+          isBook ? "text-amber-900" : "text-sky-900"
         }`}
       >
-        {rec.url ? (
-          <a
-            href={rec.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:underline"
-          >
-            {displayTitle}
-          </a>
-        ) : (
-          displayTitle
-        )}
+        {displayTitle}
       </p>
 
       {rec.titleJa && rec.title !== rec.titleJa && (
@@ -77,7 +66,48 @@ export default function RecommendCard({ rec }: { rec: Recommendation }) {
         {rec.year && ` (${rec.year})`}
       </p>
 
-      <p className="text-sm text-slate-700 leading-relaxed">{displayReason}</p>
+      <p className="text-sm text-slate-700 leading-relaxed mb-3">
+        {displayReason}
+      </p>
+
+      {/* Links */}
+      <div className="flex flex-wrap items-center gap-2">
+        {isBook && hanmotoUrl && (
+          <a
+            href={hanmotoUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-amber-700 hover:text-amber-800 hover:underline"
+          >
+            版元ドットコム
+          </a>
+        )}
+        {!isBook && rec.url && (
+          <a
+            href={rec.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-sky-700 hover:text-sky-800 hover:underline"
+          >
+            Semantic Scholar
+          </a>
+        )}
+        {!isBook && rec.openAccessPdfUrl && (
+          <button
+            onClick={() => setShowTranslation(!showTranslation)}
+            className="text-xs text-emerald-700 hover:text-emerald-800 hover:underline"
+          >
+            {showTranslation ? "翻訳を閉じる" : "全文翻訳する"}
+          </button>
+        )}
+      </div>
+
+      {/* Paper translation */}
+      {showTranslation && rec.openAccessPdfUrl && (
+        <div className="mt-3">
+          <PaperTranslation pdfUrl={rec.openAccessPdfUrl} title={rec.title} />
+        </div>
+      )}
     </div>
   );
 }

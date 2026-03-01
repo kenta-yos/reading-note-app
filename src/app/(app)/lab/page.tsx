@@ -36,7 +36,6 @@ export default async function LabPage() {
     id: s.id,
     recommendations: s.recommendations as {
       type: "book" | "paper";
-      intent: "deepen" | "broaden";
       title: string;
       titleJa?: string;
       author: string;
@@ -44,9 +43,12 @@ export default async function LabPage() {
       year: string;
       isbn?: string;
       url?: string;
+      openAccessPdfUrl?: string;
       reason: string;
       reasonJa?: string;
     }[],
+    searchType: s.searchType,
+    userQuery: s.userQuery ?? undefined,
     createdAt: s.createdAt.toISOString(),
   }));
 

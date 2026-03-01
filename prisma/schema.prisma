@@ -76,6 +76,8 @@ model ReadingInsight {
 model RecommendSession {
   id              String   @id @default(cuid())
   recommendations Json     // Recommendation[]
+  searchType      String   @default("auto")
+  userQuery       String?
   createdAt       DateTime @default(now())
 }
 
