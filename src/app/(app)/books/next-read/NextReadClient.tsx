@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Spinner from "@/components/Spinner";
 
@@ -16,11 +16,42 @@ type State =
   | { phase: "done"; items: Recommendation[] }
   | { phase: "error"; message: string };
 
+const STORAGE_KEY = "next-read-result";
+
+function saveToSession(query: string, items: Recommendation[]) {
+  try {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ query, items }));
+  } catch {}
+}
+
+function loadFromSession(): { query: string; items: Recommendation[] } | null {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function clearSession() {
+  try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
+}
+
 export default function NextReadClient() {
   const [query, setQuery] = useState("");
   const [state, setState] = useState<State>({ phase: "idle" });
   const router = useRouter();
   const composingRef = useRef(false);
+
+  // 戻ってきたとき sessionStorage から復元
+  useEffect(() => {
+    const saved = loadFromSession();
+    if (saved) {
+      setQuery(saved.query);
+      setState({ phase: "done", items: saved.items });
+    }
+  }, []);
 
   const handleSubmit = useCallback(async () => {
     const trimmed = query.trim();
@@ -48,6 +79,7 @@ export default function NextReadClient() {
       }
 
       setState({ phase: "done", items: data.recommendations });
+      saveToSession(trimmed, data.recommendations);
     } catch {
       setState({ phase: "error", message: "通信エラーが発生しました" });
     }
@@ -56,6 +88,7 @@ export default function NextReadClient() {
   const handleReset = () => {
     setState({ phase: "idle" });
     setQuery("");
+    clearSession();
   };
 
   return (
