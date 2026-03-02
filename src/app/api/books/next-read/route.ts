@@ -65,7 +65,7 @@ export async function POST(req: Request) {
 
     // candidateText から有効な ID を抽出してバリデーション
     const validIds = new Set(
-      [...candidateText.matchAll(/\[ID: ([^\]]+)\]/g)].map((m) => m[1])
+      [...candidateText.matchAll(/\[([a-z0-9-]+)\]/g)].map((m) => m[1])
     );
     const validated = items.filter((item) => validIds.has(item.bookId));
 

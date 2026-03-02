@@ -252,11 +252,8 @@ export async function getNextReadData(): Promise<{
         id: true,
         title: true,
         author: true,
-        publisher: true,
         discipline: true,
         category: true,
-        description: true,
-        pages: true,
         status: true,
         keywords: {
           where: {
@@ -265,6 +262,7 @@ export async function getNextReadData(): Promise<{
             },
           },
           select: { keyword: true },
+          take: 5,
         },
       },
     }),
@@ -291,21 +289,19 @@ export async function getNextReadData(): Promise<{
     }),
   ]);
 
+  // 1行フォーマットでトークン節約
   const candidateLines = candidates.map((b) => {
     const parts: string[] = [];
-    parts.push(`[ID: ${b.id}]`);
-    parts.push(`タイトル: ${b.title}`);
-    if (b.author) parts.push(`著者: ${b.author}`);
-    if (b.publisher) parts.push(`出版社: ${b.publisher}`);
-    if (b.discipline) parts.push(`分野: ${b.discipline}`);
-    if (b.category) parts.push(`カテゴリ: ${b.category}`);
-    if (b.description) parts.push(`内容紹介: ${b.description.slice(0, 200)}`);
-    if (b.pages) parts.push(`ページ数: ${b.pages}`);
-    parts.push(`ステータス: ${b.status === "WANT_TO_READ" ? "読みたい" : "積読"}`);
+    parts.push(`[${b.id}]`);
+    parts.push(`「${b.title}」`);
+    if (b.author) parts.push(b.author);
+    if (b.discipline) parts.push(b.discipline);
+    if (b.category) parts.push(b.category);
+    parts.push(b.status === "WANT_TO_READ" ? "読みたい" : "積読");
     if (b.keywords.length > 0) {
-      parts.push(`キーワード: ${b.keywords.map((k) => k.keyword).join("、")}`);
+      parts.push(b.keywords.map((k) => k.keyword).join(","));
     }
-    return parts.join("\n");
+    return parts.join(" / ");
   });
 
   const trendLines = recentReads.map((b) => {
@@ -326,7 +322,7 @@ export async function getNextReadData(): Promise<{
   });
 
   return {
-    candidateText: candidateLines.join("\n---\n"),
+    candidateText: candidateLines.join("\n"),
     candidateCount: candidates.length,
     trendText: trendLines.join("\n"),
     readCount: recentReads.length,
@@ -365,7 +361,7 @@ ${trendText}
 ]
 
 ■ 注意
-- bookId は候補リストに記載された [ID: xxx] の値を正確に使うこと
+- bookId は候補リストの先頭 [xxx] の値を正確に使うこと
 - 候補リストにない本は絶対に含めないこと
 - 理由はユーザーの気分・興味に直接紐づけること`;
 }
