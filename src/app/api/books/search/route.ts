@@ -80,6 +80,9 @@ export async function GET(req: Request) {
     }
   }
 
+  // 全角スペース・連続スペースを正規化
+  searchQuery = searchQuery.replace(/[\u3000\u00A0]/g, " ").replace(/\s+/g, " ").trim();
+
   // Google Books API（日本語書籍を優先取得するため多めに取得してフィルタ）
   const url = new URL("https://www.googleapis.com/books/v1/volumes");
   url.searchParams.set("q", searchQuery);
