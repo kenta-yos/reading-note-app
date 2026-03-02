@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { searchNdlForCandidates } from "@/lib/ndl-search";
 
 type Candidate = {
   title: string;
@@ -38,6 +39,20 @@ function extractIsbn(identifiers: { type: string; identifier: string }[] | undef
   return isbn13?.identifier ?? isbn10?.identifier ?? null;
 }
 
+// 日本語書籍を判定するヘルパー
+function isJapanese(vol: GoogleBooksVolume["volumeInfo"]): boolean {
+  if (!vol) return false;
+  if (vol.language === "ja") return true;
+  const text = `${vol.title ?? ""}${vol.authors?.join("") ?? ""}${vol.publisher ?? ""}`;
+  return /[\u3000-\u9FFF\uF900-\uFAFF]/.test(text);
+}
+
+// Candidate の日本語判定（NDL マージ後のソート用）
+function isCandidateJapanese(c: Candidate): boolean {
+  const text = `${c.title}${c.author}${c.publisherName}`;
+  return /[\u3000-\u9FFF\uF900-\uFAFF]/.test(text);
+}
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q");
@@ -49,6 +64,14 @@ export async function GET(req: Request) {
   // ISBN検索の場合、Google Booksで見つからなければOpenBDでタイトルを取得して再検索
   let searchQuery = q;
   const isbnMatch = q.match(/^isbn[:\s]*(\d{10,13})$/i);
+
+  // NDL 並列検索を早期開始（Google Books フローと並行実行）
+  const ndlPromise = isbnMatch
+    ? searchNdlForCandidates(isbnMatch[1], "isbn")
+    : searchNdlForCandidates(
+        q.replace(/[\u3000\u00A0]/g, " ").replace(/\s+/g, " ").trim(),
+        "keyword"
+      );
 
   if (isbnMatch) {
     const isbn = isbnMatch[1];
@@ -92,22 +115,19 @@ export async function GET(req: Request) {
     url.searchParams.set("key", process.env.GOOGLE_BOOKS_API_KEY);
   }
 
-  const res = await fetch(url.toString());
-  if (!res.ok) {
+  // Google Books と NDL を並列で待つ
+  const [googleResult, ndlResult] = await Promise.allSettled([
+    fetch(url.toString()),
+    ndlPromise,
+  ]);
+
+  // Google Books のエラーハンドリング（変更なし: 失敗 → 502）
+  if (googleResult.status === "rejected" || !googleResult.value.ok) {
     return NextResponse.json({ error: "書籍情報の取得に失敗しました" }, { status: 502 });
   }
 
-  const data = await res.json();
+  const data = await googleResult.value.json();
   const items: GoogleBooksVolume[] = data.items ?? [];
-
-  // 日本語書籍を判定するヘルパー
-  const isJapanese = (vol: GoogleBooksVolume["volumeInfo"]) => {
-    if (!vol) return false;
-    if (vol.language === "ja") return true;
-    // language未設定でも日本語文字を含むなら日本語書籍とみなす
-    const text = `${vol.title ?? ""}${vol.authors?.join("") ?? ""}${vol.publisher ?? ""}`;
-    return /[\u3000-\u9FFF\uF900-\uFAFF]/.test(text);
-  };
 
   // 日本語書籍を優先、同程度なら出版年が新しい順にソート
   const sorted = [...items].sort((a, b) => {
@@ -119,13 +139,11 @@ export async function GET(req: Request) {
     return bYear - aYear;
   });
 
-  // ISBN で重複排除しつつ候補を抽出（最大8件）
+  // Google Books 候補を抽出（ISBN 重複排除）
   const candidates: Candidate[] = [];
-  const candidateIsbns: (string | null)[] = [];
   const seenIsbns = new Set<string>();
 
   for (const item of sorted) {
-    if (candidates.length >= 8) break;
     const vol = item.volumeInfo;
     if (!vol?.title) continue;
 
@@ -147,14 +165,35 @@ export async function GET(req: Request) {
       thumbnail: thumbnail ? thumbnail.replace(/^http:/, "https:") : null,
       isbn,
     });
-    candidateIsbns.push(isbn);
   }
+
+  // NDL 候補をマージ（ISBN 重複は除外、Google 側を優先 ← サムネがあるため）
+  const ndlCandidates =
+    ndlResult.status === "fulfilled" ? ndlResult.value : [];
+
+  for (const ndl of ndlCandidates) {
+    if (ndl.isbn && seenIsbns.has(ndl.isbn)) continue;
+    if (ndl.isbn) seenIsbns.add(ndl.isbn);
+    candidates.push(ndl);
+  }
+
+  // マージ後の全候補を日本語優先 + 新しい順でソート
+  candidates.sort((a, b) => {
+    const aJa = isCandidateJapanese(a) ? 0 : 1;
+    const bJa = isCandidateJapanese(b) ? 0 : 1;
+    if (aJa !== bJa) return aJa - bJa;
+    return (b.publishedYear ?? 0) - (a.publishedYear ?? 0);
+  });
+
+  // 上位8件に絞る
+  candidates.splice(8);
 
   if (candidates.length === 0) {
     return NextResponse.json({ candidates: [] });
   }
 
   // OpenBD 補完: ISBN がある候補について日本語の内容紹介・ページ数を補完
+  const candidateIsbns = candidates.map((c) => c.isbn);
   const validIsbns = candidateIsbns.filter((isbn): isbn is string => isbn !== null);
 
   if (validIsbns.length > 0) {

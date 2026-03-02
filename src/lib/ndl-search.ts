@@ -104,6 +104,57 @@ function parseRecords(sruXml: string): NdlBookResult[] {
   return books;
 }
 
+/** Candidate 型（検索 route と共通） */
+export type NdlSearchCandidate = {
+  title: string;
+  author: string;
+  publisherName: string;
+  publishedYear: number | null;
+  pages: number | null;
+  description: string | null;
+  thumbnail: string | null;
+  isbn: string | null;
+};
+
+/**
+ * NDL SRU で書籍検索し、route の Candidate 形式で返す。
+ * Google Books 並列検索ソースとして使用。
+ * 失敗時は空配列を返す（呼び出し元で握りつぶす前提）。
+ */
+export async function searchNdlForCandidates(
+  query: string,
+  mode: "keyword" | "isbn" = "keyword"
+): Promise<NdlSearchCandidate[]> {
+  try {
+    const cql =
+      mode === "isbn" ? `isbn="${query}"` : `anywhere="${query}"`;
+    const url =
+      `https://ndlsearch.ndl.go.jp/api/sru` +
+      `?operation=searchRetrieve` +
+      `&query=${encodeURIComponent(cql)}` +
+      `&maximumRecords=20` +
+      `&mediatype=1` +
+      `&recordSchema=dcndl`;
+
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    const xml = await res.text();
+    const books = parseRecords(xml);
+
+    return books.map((book) => ({
+      title: book.title,
+      author: book.authors.join("／"),
+      publisherName: book.publisher,
+      publishedYear: book.year ? parseInt(book.year, 10) || null : null,
+      pages: null,
+      description: null,
+      thumbnail: null,
+      isbn: book.isbn || null,
+    }));
+  } catch {
+    return [];
+  }
+}
+
 export type NdlSearchQuery = { keywords: string[]; intent: string };
 
 export type NdlCandidate = NdlBookResult & {
