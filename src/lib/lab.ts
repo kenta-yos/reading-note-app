@@ -254,6 +254,7 @@ export async function getNextReadData(): Promise<{
         author: true,
         discipline: true,
         category: true,
+        description: true,
         status: true,
         keywords: {
           where: {
@@ -289,7 +290,7 @@ export async function getNextReadData(): Promise<{
     }),
   ]);
 
-  // 1行フォーマットでトークン節約
+  // コンパクトフォーマット（内容紹介は80字に切り詰め）
   const candidateLines = candidates.map((b) => {
     const parts: string[] = [];
     parts.push(`[${b.id}]`);
@@ -301,6 +302,7 @@ export async function getNextReadData(): Promise<{
     if (b.keywords.length > 0) {
       parts.push(b.keywords.map((k) => k.keyword).join(","));
     }
+    if (b.description) parts.push(b.description.slice(0, 80));
     return parts.join(" / ");
   });
 
