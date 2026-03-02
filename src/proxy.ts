@@ -1,5 +1,5 @@
 /**
- * Middleware: /(app) と /api（/api/auth/login 除く）でクッキー検証
+ * Proxy: /(app) と /api（/api/auth/login 除く）でクッキー検証
  * /public と /login はスルー
  * Uses Web Crypto API (Edge Runtime compatible)
  */
@@ -28,7 +28,7 @@ async function verifyToken(token: string, secret: string): Promise<boolean> {
   return sig === expected;
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Public routes - no auth needed
