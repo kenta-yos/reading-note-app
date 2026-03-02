@@ -53,6 +53,15 @@ function isCandidateJapanese(c: Candidate): boolean {
   return /[\u3000-\u9FFF\uF900-\uFAFF]/.test(text);
 }
 
+// タイトル正規化（重複排除用）
+function normalizeTitle(t: string): string {
+  return t
+    .replace(/[\s　・:：=＝\-－—–]/g, "")
+    .replace(/[（(].*?[)）]/g, "")
+    .replace(/[第新改訂増補版]+版$/g, "")
+    .toLowerCase();
+}
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q");
@@ -139,9 +148,10 @@ export async function GET(req: Request) {
     return bYear - aYear;
   });
 
-  // Google Books 候補を抽出（ISBN 重複排除）
+  // Google Books 候補を抽出（ISBN・タイトル重複排除）
   const candidates: Candidate[] = [];
   const seenIsbns = new Set<string>();
+  const seenTitles = new Set<string>();
 
   for (const item of sorted) {
     const vol = item.volumeInfo;
@@ -152,6 +162,9 @@ export async function GET(req: Request) {
       if (seenIsbns.has(isbn)) continue;
       seenIsbns.add(isbn);
     }
+
+    const normTitle = normalizeTitle(vol.title);
+    seenTitles.add(normTitle);
 
     const thumbnail = vol.imageLinks?.thumbnail ?? vol.imageLinks?.smallThumbnail ?? null;
 
@@ -167,13 +180,15 @@ export async function GET(req: Request) {
     });
   }
 
-  // NDL 候補をマージ（ISBN 重複は除外、Google 側を優先 ← サムネがあるため）
+  // NDL 候補をマージ（ISBN・タイトル重複は除外、Google 側を優先 ← サムネがあるため）
   const ndlCandidates =
     ndlResult.status === "fulfilled" ? ndlResult.value : [];
 
   for (const ndl of ndlCandidates) {
     if (ndl.isbn && seenIsbns.has(ndl.isbn)) continue;
+    if (seenTitles.has(normalizeTitle(ndl.title))) continue;
     if (ndl.isbn) seenIsbns.add(ndl.isbn);
+    seenTitles.add(normalizeTitle(ndl.title));
     candidates.push(ndl);
   }
 
