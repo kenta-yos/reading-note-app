@@ -96,20 +96,27 @@ export default async function BooksPage({
           <h1 className="text-xl lg:text-2xl font-bold text-slate-800">読書記録</h1>
           <p className="text-slate-500 text-sm mt-0.5">登録した本の一覧</p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <ActionLink
-            href="/categories"
-            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:border-blue-300 hover:text-blue-600 transition-colors shadow-sm min-h-[40px] min-w-[80px]"
-            spinnerClassName="w-4 h-4 text-slate-500"
-          >
-            🗂️ 分類
-          </ActionLink>
+        <div className="flex items-center gap-1.5 shrink-0">
           <ActionLink
             href={`/books/new${params.status ? `?status=${params.status}` : ""}`}
-            className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold transition-colors shadow-sm min-h-[40px] min-w-[96px]"
+            className="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-lg transition-colors shadow-sm"
             spinnerClassName="w-4 h-4 text-white"
           >
-            ➕ 登録する
+            ➕
+          </ActionLink>
+          <ActionLink
+            href="/books/next-read"
+            className="flex items-center justify-center w-10 h-10 rounded-lg border border-violet-200 bg-violet-50 text-lg hover:border-violet-300 hover:bg-violet-100 transition-colors shadow-sm"
+            spinnerClassName="w-4 h-4 text-violet-500"
+          >
+            ✨
+          </ActionLink>
+          <ActionLink
+            href="/categories"
+            className="flex items-center justify-center w-10 h-10 rounded-lg border border-slate-200 bg-white text-lg text-slate-600 hover:border-blue-300 hover:text-blue-600 transition-colors shadow-sm"
+            spinnerClassName="w-4 h-4 text-slate-500"
+          >
+            🗂️
           </ActionLink>
         </div>
       </div>

@@ -236,6 +236,141 @@ ${items.map((item, i) => `${i + 1}. title: ${item.title}\n   reason: ${item.reas
 }
 
 /**
+ * 次なに読む？用: 候補（読みたい+積読）と傾向（読了直近30冊）を取得
+ */
+export async function getNextReadData(): Promise<{
+  candidateText: string;
+  candidateCount: number;
+  trendText: string;
+  readCount: number;
+}> {
+  const [candidates, recentReads] = await Promise.all([
+    prisma.book.findMany({
+      where: { status: { in: ["WANT_TO_READ", "READING_STACK"] } },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        title: true,
+        author: true,
+        publisher: true,
+        discipline: true,
+        category: true,
+        description: true,
+        pages: true,
+        status: true,
+        keywords: {
+          where: {
+            keyword: {
+              notIn: ["__api_error__", "__no_concepts__"],
+            },
+          },
+          select: { keyword: true },
+        },
+      },
+    }),
+    prisma.book.findMany({
+      where: { status: "READ", readAt: { not: null } },
+      orderBy: { readAt: "desc" },
+      take: 30,
+      select: {
+        title: true,
+        author: true,
+        discipline: true,
+        category: true,
+        rating: true,
+        readAt: true,
+        keywords: {
+          where: {
+            keyword: {
+              notIn: ["__api_error__", "__no_concepts__"],
+            },
+          },
+          select: { keyword: true },
+        },
+      },
+    }),
+  ]);
+
+  const candidateLines = candidates.map((b) => {
+    const parts: string[] = [];
+    parts.push(`[ID: ${b.id}]`);
+    parts.push(`タイトル: ${b.title}`);
+    if (b.author) parts.push(`著者: ${b.author}`);
+    if (b.publisher) parts.push(`出版社: ${b.publisher}`);
+    if (b.discipline) parts.push(`分野: ${b.discipline}`);
+    if (b.category) parts.push(`カテゴリ: ${b.category}`);
+    if (b.description) parts.push(`内容紹介: ${b.description.slice(0, 200)}`);
+    if (b.pages) parts.push(`ページ数: ${b.pages}`);
+    parts.push(`ステータス: ${b.status === "WANT_TO_READ" ? "読みたい" : "積読"}`);
+    if (b.keywords.length > 0) {
+      parts.push(`キーワード: ${b.keywords.map((k) => k.keyword).join("、")}`);
+    }
+    return parts.join("\n");
+  });
+
+  const trendLines = recentReads.map((b) => {
+    const parts: string[] = [];
+    parts.push(`「${b.title}」`);
+    if (b.author) parts.push(`著者:${b.author}`);
+    if (b.discipline) parts.push(`分野:${b.discipline}`);
+    if (b.category) parts.push(`カテゴリ:${b.category}`);
+    if (b.readAt) {
+      const d = new Date(b.readAt);
+      parts.push(`${d.getFullYear()}年${d.getMonth() + 1}月`);
+    }
+    if (b.rating) parts.push(`★${b.rating}`);
+    if (b.keywords.length > 0) {
+      parts.push(b.keywords.map((k) => k.keyword).join(","));
+    }
+    return parts.join(" / ");
+  });
+
+  return {
+    candidateText: candidateLines.join("\n---\n"),
+    candidateCount: candidates.length,
+    trendText: trendLines.join("\n"),
+    readCount: recentReads.length,
+  };
+}
+
+/**
+ * 次なに読む？プロンプト構築
+ */
+export function buildNextReadPrompt(
+  userQuery: string,
+  candidateText: string,
+  candidateCount: number,
+  trendText: string,
+  readCount: number
+): string {
+  return `あなたは読書アドバイザーです。ユーザーの「読みたい」「積読」リストから、今の気分・興味に合う本を5冊ピックアップしてください。
+
+■ ユーザーの気分・興味
+「${userQuery}」
+
+■ 候補リスト（${candidateCount}冊）
+${candidateText}
+
+■ 直近の読書傾向（${readCount}冊）
+${trendText}
+
+■ タスク
+1. ユーザーの気分・興味と読書傾向を踏まえて、候補リストから最適な5冊を選んでください
+2. 各本について、なぜ今読むべきかの理由を2〜3文で書いてください
+3. 候補が5冊未満の場合は、ある分だけ選んでください
+
+■ 出力JSON（これ以外のテキストを含めないでください）
+[
+  { "bookId": "候補リストのID", "title": "本のタイトル", "reason": "推薦理由" }
+]
+
+■ 注意
+- bookId は候補リストに記載された [ID: xxx] の値を正確に使うこと
+- 候補リストにない本は絶対に含めないこと
+- 理由はユーザーの気分・興味に直接紐づけること`;
+}
+
+/**
  * 自然文検索: クエリ分析プロンプト
  */
 export function buildNaturalSearchQueryPrompt(
