@@ -6,6 +6,7 @@ type SearchParams = {
   author?: string;
   publisher?: string;
   publishedYear?: string;
+  isbn?: string;
   status?: string;
 };
 
@@ -25,6 +26,7 @@ export default async function NewBookPage({
     ...(params.author ? { author: params.author } : {}),
     ...(params.publisher ? { publisher: params.publisher } : {}),
     ...(params.publishedYear ? { publishedYear: Number(params.publishedYear) } : {}),
+    ...(params.isbn ? { isbn: params.isbn } : {}),
     ...(validStatus ? { status: validStatus } : {}),
   };
 

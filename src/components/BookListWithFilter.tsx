@@ -126,6 +126,7 @@ function RegisterButton({ book, isRegistered }: { book: NDLBook; isRegistered: b
       const year = parseInt(book.issued.slice(0, 4));
       if (!isNaN(year)) params.set("publishedYear", String(year));
     }
+    if (book.isbn) params.set("isbn", book.isbn);
     router.push(`/books/new?${params.toString()}`);
   };
   return (

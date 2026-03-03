@@ -91,6 +91,29 @@ export default function BookForm({ initialData = {}, mode = "create", returnStat
     };
   }, []);
 
+  // ISBN初期値があり description が空の場合、OpenBD から自動補完
+  useEffect(() => {
+    const isbnVal = initialData.isbn;
+    if (!isbnVal || initialData.description) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/books/search?q=${encodeURIComponent(`isbn:${isbnVal}`)}`);
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        const match = data.candidates?.find(
+          (c: BookCandidate) => c.isbn === isbnVal || c.title === initialData.title
+        ) ?? data.candidates?.[0];
+        if (match && !cancelled) {
+          if (match.description) setDescription(match.description);
+          if (match.pages && !pages) setPages(String(match.pages));
+        }
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const applyCandidate = (candidate: BookCandidate) => {
     setTitle(candidate.title);
     setAuthor(candidate.author);
