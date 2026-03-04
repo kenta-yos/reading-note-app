@@ -49,11 +49,20 @@ export async function POST(req: Request) {
     }
 
     const annotation = data.responses?.[0]?.fullTextAnnotation;
-    const text = annotation?.text?.trim() ?? "";
+    const rawText = annotation?.text?.trim() ?? "";
 
-    if (!text) {
+    if (!rawText) {
       return NextResponse.json({ error: "テキストを検出できませんでした" }, { status: 400 });
     }
+
+    // Vision APIは縦書き列ごとに改行を入れるため、不要な改行を除去する
+    // 段落区切り（空行）は保持し、単一改行は結合する
+    const text = rawText
+      .replace(/\r\n/g, "\n")
+      .split(/\n{2,}/)                       // 空行で段落分割
+      .map((para: string) => para.replace(/\n/g, "")) // 段落内の改行を除去
+      .join("\n")
+      .trim();
 
     return NextResponse.json({ text });
   } catch (e) {

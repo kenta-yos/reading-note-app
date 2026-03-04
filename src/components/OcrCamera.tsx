@@ -28,6 +28,8 @@ export default function OcrCamera({ onQuote, onClose }: Props) {
   const dragStart = useRef<{ x: number; y: number } | null>(null);
   const dragging = useRef(false);
   const prevSelection = useRef<Rect | null>(null);
+  type ResizeEdge = "top" | "bottom" | "left" | "right" | "top-left" | "top-right" | "bottom-left" | "bottom-right";
+  const resizeEdge = useRef<ResizeEdge | null>(null);
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
@@ -106,12 +108,40 @@ export default function OcrCamera({ onQuote, onClose }: Props) {
     };
   };
 
+  const detectEdge = (pos: { x: number; y: number }, sel: Rect): ResizeEdge | null => {
+    const T = 0.04; // タッチ判定の閾値（4%）
+    const nearTop = Math.abs(pos.y - sel.y) < T;
+    const nearBottom = Math.abs(pos.y - (sel.y + sel.h)) < T;
+    const nearLeft = Math.abs(pos.x - sel.x) < T;
+    const nearRight = Math.abs(pos.x - (sel.x + sel.w)) < T;
+    const inX = pos.x >= sel.x - T && pos.x <= sel.x + sel.w + T;
+    const inY = pos.y >= sel.y - T && pos.y <= sel.y + sel.h + T;
+
+    if (nearTop && nearLeft) return "top-left";
+    if (nearTop && nearRight) return "top-right";
+    if (nearBottom && nearLeft) return "bottom-left";
+    if (nearBottom && nearRight) return "bottom-right";
+    if (nearTop && inX) return "top";
+    if (nearBottom && inX) return "bottom";
+    if (nearLeft && inY) return "left";
+    if (nearRight && inY) return "right";
+    return null;
+  };
+
   const onPointerDown = (e: React.TouchEvent | React.MouseEvent) => {
     const pos = getPos(e);
     if (!pos) return;
     dragStart.current = pos;
     dragging.current = false;
     prevSelection.current = selection;
+
+    // 既存の選択範囲のエッジ付近ならリサイズモード
+    if (selection && selection.w > 0.02 && selection.h > 0.02) {
+      const edge = detectEdge(pos, selection);
+      resizeEdge.current = edge;
+    } else {
+      resizeEdge.current = null;
+    }
   };
 
   const onPointerMove = (e: React.TouchEvent | React.MouseEvent) => {
@@ -123,7 +153,41 @@ export default function OcrCamera({ onQuote, onClose }: Props) {
     const dy = Math.abs(pos.y - start.y);
     if (!dragging.current && dx < 0.02 && dy < 0.02) return;
     dragging.current = true;
-    setSelection({ x: Math.min(start.x, pos.x), y: Math.min(start.y, pos.y), w: dx, h: dy });
+
+    if (resizeEdge.current && prevSelection.current) {
+      // リサイズモード
+      const sel = prevSelection.current;
+      let { x, y, w, h } = sel;
+      const edge = resizeEdge.current;
+
+      if (edge.includes("top")) {
+        const newY = Math.min(pos.y, sel.y + sel.h - 0.02);
+        h = sel.y + sel.h - newY;
+        y = newY;
+      }
+      if (edge.includes("bottom")) {
+        h = Math.max(0.02, pos.y - sel.y);
+      }
+      if (edge.includes("left")) {
+        const newX = Math.min(pos.x, sel.x + sel.w - 0.02);
+        w = sel.x + sel.w - newX;
+        x = newX;
+      }
+      if (edge.includes("right")) {
+        w = Math.max(0.02, pos.x - sel.x);
+      }
+
+      // 画像範囲内にクランプ
+      x = Math.max(0, x);
+      y = Math.max(0, y);
+      w = Math.min(w, 1 - x);
+      h = Math.min(h, 1 - y);
+
+      setSelection({ x, y, w, h });
+    } else {
+      // 新規選択
+      setSelection({ x: Math.min(start.x, pos.x), y: Math.min(start.y, pos.y), w: dx, h: dy });
+    }
   };
 
   const onPointerUp = () => {
@@ -132,6 +196,7 @@ export default function OcrCamera({ onQuote, onClose }: Props) {
     }
     dragStart.current = null;
     dragging.current = false;
+    resizeEdge.current = null;
   };
 
   const cropAndRecognize = async () => {
@@ -281,9 +346,20 @@ export default function OcrCamera({ onQuote, onClose }: Props) {
                     height: `${selection.h * 100}%`,
                   }}
                 >
+                  {/* リサイズハンドル（四隅 + 四辺中央） */}
+                  {(["top-left","top-right","bottom-left","bottom-right","top","bottom","left","right"] as const).map((pos) => {
+                    const style: React.CSSProperties = { position: "absolute", width: 16, height: 16, borderRadius: "50%", background: "white", border: "2px solid #60a5fa", zIndex: 10 };
+                    if (pos.includes("top")) { style.top = -8; }
+                    if (pos.includes("bottom")) { style.bottom = -8; }
+                    if (pos.includes("left")) { style.left = -8; }
+                    if (pos.includes("right")) { style.right = -8; }
+                    if (pos === "top" || pos === "bottom") { style.left = "50%"; style.marginLeft = -8; }
+                    if (pos === "left" || pos === "right") { style.top = "50%"; style.marginTop = -8; }
+                    return <div key={pos} style={style} />;
+                  })}
                   <button
                     onClick={(e) => { e.stopPropagation(); setSelection(null); }}
-                    className="absolute -top-3 -right-3 w-6 h-6 bg-white rounded-full shadow-md flex items-center justify-center z-10"
+                    className="absolute -top-3 -right-3 w-6 h-6 bg-white rounded-full shadow-md flex items-center justify-center z-20"
                   >
                     <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
