@@ -18,7 +18,7 @@ import { isCreditOrRateLimitError, getAnthropicErrorMessage } from "@/lib/anthro
 
 export const maxDuration = 30;
 
-const RESERVED_SLUGS = new Set(["search", "next-read", "backfill-isbn"]);
+const RESERVED_SLUGS = new Set(["search", "next-read", "backfill-isbn", "refetch"]);
 
 type Params = { params: Promise<{ slug?: string[] }> };
 
@@ -76,6 +76,7 @@ export async function POST(req: Request, { params }: Params) {
   if (!slug || slug.length === 0) return createBook(req);
   if (slug[0] === "next-read") return nextRead(req);
   if (slug[0] === "backfill-isbn") return backfillIsbn();
+  if (slug[0] === "refetch") return refetchBookInfo(req);
   return NextResponse.json({ error: "Not found" }, { status: 404 });
 }
 
@@ -226,6 +227,72 @@ async function deleteBook(id: string) {
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: "削除失敗" }, { status: 500 });
+  }
+}
+
+async function refetchBookInfo(req: Request) {
+  try {
+    const { bookId } = await req.json();
+    const book = await prisma.book.findUnique({ where: { id: bookId } });
+    if (!book) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!book.isbn) return NextResponse.json({ error: "ISBNがありません" }, { status: 400 });
+
+    // Google Books + OpenBD を並列取得
+    const googleUrl = new URL("https://www.googleapis.com/books/v1/volumes");
+    googleUrl.searchParams.set("q", `isbn:${book.isbn}`);
+    googleUrl.searchParams.set("maxResults", "1");
+    if (process.env.GOOGLE_BOOKS_API_KEY) googleUrl.searchParams.set("key", process.env.GOOGLE_BOOKS_API_KEY);
+
+    const [googleRes, openBDRes] = await Promise.allSettled([
+      fetch(googleUrl.toString()),
+      fetch(`https://api.openbd.jp/v1/get?isbn=${book.isbn}`),
+    ]);
+
+    let description: string | null = null;
+    let pages: number | null = null;
+
+    // Google Books
+    if (googleRes.status === "fulfilled" && googleRes.value.ok) {
+      const data = await googleRes.value.json();
+      const vol = (data.items as GoogleBooksVolume[] | undefined)?.[0]?.volumeInfo;
+      if (vol) {
+        if (vol.description) description = vol.description;
+        if (vol.pageCount && vol.pageCount > 0) pages = vol.pageCount;
+      }
+    }
+
+    // OpenBD（より詳細な内容紹介を優先）
+    if (openBDRes.status === "fulfilled" && openBDRes.value.ok) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const entries: Array<any | null> = await openBDRes.value.json();
+      const entry = entries?.[0];
+      if (entry) {
+        const textContents: Array<{ TextType?: string; Text?: string }> = entry.onix?.CollateralDetail?.TextContent ?? [];
+        const detailed = textContents.find((tc) => tc.TextType === "03");
+        const short = textContents.find((tc) => tc.TextType === "02");
+        if (detailed?.Text || short?.Text) description = (detailed?.Text || short?.Text) as string;
+
+        const extents: Array<{ ExtentType?: string; ExtentValue?: string }> = entry.onix?.DescriptiveDetail?.Extent ?? [];
+        const pageExtent = extents.find((e) => e.ExtentType === "11");
+        if (pageExtent?.ExtentValue) { const p = parseInt(pageExtent.ExtentValue, 10); if (!isNaN(p) && p > 0) pages = p; }
+      }
+    }
+
+    // 欠けているフィールドのみ更新
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const updates: Record<string, any> = {};
+    if (!book.description && description) updates.description = description;
+    if (!book.pages && pages) updates.pages = pages;
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ updated: false, message: "新しい情報はありませんでした" });
+    }
+
+    await prisma.book.update({ where: { id: bookId }, data: updates });
+    revalidatePath("/", "layout");
+    return NextResponse.json({ updated: true, fields: Object.keys(updates) });
+  } catch {
+    return NextResponse.json({ error: "再取得に失敗しました" }, { status: 500 });
   }
 }
 

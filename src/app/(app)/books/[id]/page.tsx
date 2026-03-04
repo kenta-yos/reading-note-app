@@ -6,6 +6,7 @@ import BackButton from "@/components/BackButton";
 import StatusChanger from "@/components/StatusChanger";
 import { BookStatus } from "@/lib/types";
 import MemoSection from "@/components/MemoSection";
+import RefetchButton from "@/components/RefetchButton";
 
 export default async function BookDetailPage({
   params,
@@ -99,6 +100,13 @@ export default async function BookDetailPage({
             {meta.map((item, i) => (
               <span key={i}>{item}</span>
             ))}
+          </div>
+        )}
+
+        {/* 情報再取得 */}
+        {book.isbn && (!book.description || !book.pages) && (
+          <div className="mt-3 pt-3 border-t border-slate-100">
+            <RefetchButton bookId={id} />
           </div>
         )}
       </div>
