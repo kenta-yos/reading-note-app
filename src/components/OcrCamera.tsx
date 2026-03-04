@@ -13,9 +13,9 @@ type Rect = { x: number; y: number; w: number; h: number };
 
 export default function OcrCamera({ onQuote, onClose }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const cropRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const imageSizeRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
 
   const [stage, setStage] = useState<Stage>("camera");
   const [cameraError, setCameraError] = useState("");
@@ -80,13 +80,14 @@ export default function OcrCamera({ onQuote, onClose }: Props) {
 
   const capture = () => {
     const video = videoRef.current;
-    const canvas = canvasRef.current;
-    if (!video || !canvas) return;
+    if (!video) return;
+    const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     ctx.drawImage(video, 0, 0);
+    imageSizeRef.current = { w: video.videoWidth, h: video.videoHeight };
     setCapturedImage(canvas.toDataURL("image/jpeg", 0.85));
     stopCamera();
     setSelection(null);
@@ -134,24 +135,31 @@ export default function OcrCamera({ onQuote, onClose }: Props) {
   };
 
   const cropAndRecognize = async () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!capturedImage) return;
 
     let dataUrl: string;
+
     if (selection && selection.w > 0.02 && selection.h > 0.02) {
-      const sx = Math.round(selection.x * canvas.width);
-      const sy = Math.round(selection.y * canvas.height);
-      const sw = Math.round(selection.w * canvas.width);
-      const sh = Math.round(selection.h * canvas.height);
+      // capturedImage から Image を生成してクロップ
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const i = new Image();
+        i.onload = () => resolve(i);
+        i.onerror = reject;
+        i.src = capturedImage;
+      });
+      const sx = Math.round(selection.x * img.naturalWidth);
+      const sy = Math.round(selection.y * img.naturalHeight);
+      const sw = Math.round(selection.w * img.naturalWidth);
+      const sh = Math.round(selection.h * img.naturalHeight);
       const cropCanvas = document.createElement("canvas");
       cropCanvas.width = sw;
       cropCanvas.height = sh;
       const ctx = cropCanvas.getContext("2d");
       if (!ctx) return;
-      ctx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
       dataUrl = cropCanvas.toDataURL("image/jpeg", 0.85);
     } else {
-      dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+      dataUrl = capturedImage;
     }
 
     setStage("recognizing");
@@ -234,7 +242,6 @@ export default function OcrCamera({ onQuote, onClose }: Props) {
             </div>
           )}
         </div>
-        <canvas ref={canvasRef} className="hidden" />
       </div>
     );
   }
@@ -289,7 +296,7 @@ export default function OcrCamera({ onQuote, onClose }: Props) {
         </div>
 
         <div className="px-4 py-3 border-t border-slate-200 flex items-center justify-between gap-2 shrink-0"
-          style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}
+          style={{ paddingBottom: "max(env(safe-area-inset-bottom), 16px)" }}
         >
           <p className="text-[11px] text-slate-400">
             {hasSelection ? "選択範囲を読み取ります" : "ドラッグで範囲選択（未選択で全体読み取り）"}
@@ -301,7 +308,6 @@ export default function OcrCamera({ onQuote, onClose }: Props) {
             読み取る
           </button>
         </div>
-        <canvas ref={canvasRef} className="hidden" />
       </div>
     );
   }
@@ -335,7 +341,7 @@ export default function OcrCamera({ onQuote, onClose }: Props) {
       </div>
 
       <div className="px-4 py-3 border-t border-slate-200 shrink-0"
-        style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}
+        style={{ paddingBottom: "max(env(safe-area-inset-bottom), 16px)" }}
       >
         <button
           onClick={handleConfirm}
@@ -345,7 +351,6 @@ export default function OcrCamera({ onQuote, onClose }: Props) {
           引用する
         </button>
       </div>
-      <canvas ref={canvasRef} className="hidden" />
     </div>
   );
 }
