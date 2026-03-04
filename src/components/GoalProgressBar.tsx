@@ -41,11 +41,18 @@ export default function GoalProgressBar({
           {current.toLocaleString()} / {goal.toLocaleString()} ページ
         </p>
       </div>
-      <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+      <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden relative">
         <div
           className="h-full bg-blue-500 rounded-full transition-all duration-500"
           style={{ width: `${pct}%` }}
         />
+        {currentMonth !== undefined && remaining > 0 && (
+          <div
+            className="absolute top-0 h-full w-0.5 bg-slate-400"
+            style={{ left: `${(currentMonth / 12) * 100}%` }}
+            title={`${currentMonth}月末の期待値: ${Math.round(goal * currentMonth / 12).toLocaleString()} ページ`}
+          />
+        )}
       </div>
       <div className="flex justify-between mt-2 flex-wrap gap-y-1">
         <p className="text-xs text-slate-400">{pct.toFixed(1)}% 達成</p>
@@ -53,6 +60,12 @@ export default function GoalProgressBar({
           残り {remaining.toLocaleString()} ページ
         </p>
       </div>
+      {currentMonth !== undefined && remaining > 0 && (
+        <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1.5">
+          <span className="inline-block w-3 h-0.5 bg-slate-400 rounded" />
+          {currentMonth}月末の期待値: {Math.round(goal * currentMonth / 12).toLocaleString()} ページ
+        </p>
+      )}
       {neededThisMonth !== null && (
         <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-2">
           <span className="text-xs text-slate-500">今月あと</span>

@@ -167,7 +167,7 @@ export default async function DashboardPage({
                   {stats.totalPages.toLocaleString()} / {goalPages.toLocaleString()} P
                 </p>
               </div>
-              <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+              <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden relative">
                 <div
                   className="h-full rounded-full transition-all duration-500"
                   style={{
@@ -175,6 +175,17 @@ export default async function DashboardPage({
                     backgroundColor: stats.totalPages >= goalPages ? "#10b981" : "#3b82f6",
                   }}
                 />
+                {/* 今月末の期待進捗マーカー */}
+                {isCurrentYear && stats.totalPages < goalPages && (() => {
+                  const expectedPct = (currentMonth / 12) * 100;
+                  return (
+                    <div
+                      className="absolute top-0 h-full w-0.5 bg-slate-400"
+                      style={{ left: `${expectedPct}%` }}
+                      title={`${currentMonth}月末の期待値: ${Math.round(goalPages * currentMonth / 12).toLocaleString()} P`}
+                    />
+                  );
+                })()}
               </div>
               <div className="flex justify-between mt-1.5">
                 <p className="text-xs text-slate-400">
@@ -194,6 +205,13 @@ export default async function DashboardPage({
                   );
                 })()}
               </div>
+              {/* 期待値の凡例 */}
+              {isCurrentYear && stats.totalPages < goalPages && (
+                <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1.5">
+                  <span className="inline-block w-3 h-0.5 bg-slate-400 rounded" />
+                  {currentMonth}月末の期待値: {Math.round(goalPages * currentMonth / 12).toLocaleString()} P
+                </p>
+              )}
             </div>
 
             {/* バーンチャート */}
