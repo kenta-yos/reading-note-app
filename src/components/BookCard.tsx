@@ -18,6 +18,7 @@ type BookCardProps = {
   rating: number | null;
   status: BookStatus;
   readAt: Date | null;
+  statusChangedAt?: Date | null;
 };
 
 export default function BookCard({
@@ -31,6 +32,7 @@ export default function BookCard({
   rating,
   status,
   readAt,
+  statusChangedAt,
 }: BookCardProps) {
   const router = useRouter();
   const { toast } = useToast();
@@ -182,7 +184,7 @@ export default function BookCard({
             {new Date(readAt).toLocaleDateString("ja-JP")} 読了
           </p>
         ) : status !== "READ" ? (
-          <div className="mt-2">
+          <div className="mt-2 flex items-center gap-2">
             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
               status === "WANT_TO_READ" ? "bg-purple-50 text-purple-600" :
               status === "READING_STACK" ? "bg-amber-50 text-amber-600" :
@@ -190,6 +192,11 @@ export default function BookCard({
             }`}>
               {BOOK_STATUSES[status].label}
             </span>
+            {statusChangedAt && (
+              <span className="text-xs text-slate-400">
+                {new Date(statusChangedAt).toLocaleDateString("ja-JP")}
+              </span>
+            )}
           </div>
         ) : null}
       </button>

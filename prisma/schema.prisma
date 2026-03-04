@@ -27,9 +27,10 @@ model Book {
   rating        Int?
   description   String?
   notes         String?
-  status        BookStatus    @default(READ)
-  readAt        DateTime?
-  createdAt     DateTime      @default(now())
+  status          BookStatus    @default(READ)
+  readAt          DateTime?
+  statusChangedAt DateTime      @default(now())
+  createdAt       DateTime      @default(now())
   keywords      BookKeyword[]
 }
 

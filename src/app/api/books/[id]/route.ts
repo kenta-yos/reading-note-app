@@ -42,6 +42,8 @@ export async function PUT(
       resolvedReadAt = readAt ? new Date(readAt) : existingBook.readAt;
     }
 
+    const statusChanged = newStatus !== existingBook.status;
+
     const book = await prisma.book.update({
       where: { id },
       data: {
@@ -58,6 +60,7 @@ export async function PUT(
         notes: notes || null,
         status: newStatus,
         readAt: resolvedReadAt,
+        ...(statusChanged ? { statusChangedAt: new Date() } : {}),
       },
     });
 
@@ -91,7 +94,7 @@ export async function PATCH(
 
     const book = await prisma.book.update({
       where: { id },
-      data: { status: newStatus, readAt: resolvedReadAt },
+      data: { status: newStatus, readAt: resolvedReadAt, statusChangedAt: new Date() },
     });
 
     return NextResponse.json(book);

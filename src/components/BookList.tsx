@@ -17,6 +17,7 @@ type BookData = {
   rating: number | null;
   status: string;
   readAt: string | null;
+  statusChangedAt: string | null;
 };
 
 type Props = {
@@ -88,6 +89,7 @@ export default function BookList({ books, totalCount, hasMore }: Props) {
             rating={book.rating}
             status={book.status as BookStatus}
             readAt={book.readAt ? new Date(book.readAt) : null}
+            statusChangedAt={book.statusChangedAt ? new Date(book.statusChangedAt) : null}
           />
         ))}
       </div>
