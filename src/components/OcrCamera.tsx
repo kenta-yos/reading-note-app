@@ -40,6 +40,12 @@ export default function OcrCamera({ onQuote, onClose }: Props) {
     onClose();
   }, [stopCamera, onClose]);
 
+  // OCR中はBottomNavを非表示
+  useEffect(() => {
+    document.body.classList.add("ocr-active");
+    return () => { document.body.classList.remove("ocr-active"); };
+  }, []);
+
   // カメラ起動
   useEffect(() => {
     let mounted = true;
@@ -167,8 +173,9 @@ export default function OcrCamera({ onQuote, onClose }: Props) {
       if (!res.ok) throw new Error(data.error);
       setRecognizedText(data.text);
       setStage("edit");
-    } catch {
-      setCameraError("テキスト認識に失敗しました");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "テキスト認識に失敗しました";
+      setCameraError(msg);
       setStage("camera");
     }
   };

@@ -83,6 +83,11 @@ body {
   animation: spin-slow 0.8s linear infinite;
 }
 
+/* ── OCRカメラ起動中はBottomNavを非表示 ── */
+body.ocr-active nav[class*="lg:hidden"] {
+  display: none !important;
+}
+
 /* ── prefers-reduced-motion ── */
 @media (prefers-reduced-motion: reduce) {
   .animate-toast-in,

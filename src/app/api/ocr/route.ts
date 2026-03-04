@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
+import { isCreditOrRateLimitError } from "@/lib/anthropic-error";
 
 export async function POST(req: Request) {
   try {
@@ -52,6 +53,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ text: text.trim() });
   } catch (e) {
     console.error("OCR error:", e);
+    if (isCreditOrRateLimitError(e)) {
+      return NextResponse.json({ error: "APIクレジットが不足しています。Anthropicコンソールで残高を確認してください。" }, { status: 402 });
+    }
     return NextResponse.json({ error: "テキスト認識に失敗しました" }, { status: 500 });
   }
 }
