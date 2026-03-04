@@ -1,6 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
-import { isCreditOrRateLimitError } from "@/lib/anthropic-error";
 
 export async function POST(req: Request) {
   try {
@@ -10,52 +8,56 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "image (base64) は必須です" }, { status: 400 });
     }
 
-    // data:image/png;base64,... or data:image/jpeg;base64,... から分離
-    const match = image.match(/^data:(image\/\w+);base64,(.+)$/);
+    const match = image.match(/^data:image\/\w+;base64,(.+)$/);
     if (!match) {
       return NextResponse.json({ error: "不正な画像データです" }, { status: 400 });
     }
 
-    const mediaType = match[1] as "image/png" | "image/jpeg" | "image/webp" | "image/gif";
-    const base64Data = match[2];
+    const base64Data = match[1];
+    const apiKey = process.env.GOOGLE_CLOUD_VISION_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json({ error: "Google Cloud Vision APIキーが設定されていません" }, { status: 500 });
+    }
 
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    const message = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 2048,
-      messages: [
-        {
-          role: "user",
-          content: [
+    const res = await fetch(
+      `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requests: [
             {
-              type: "image",
-              source: { type: "base64", media_type: mediaType, data: base64Data },
-            },
-            {
-              type: "text",
-              text: `この画像に写っている本のページのテキストを正確に書き起こしてください。
-
-ルール：
-- 縦書き・横書きどちらにも対応すること
-- 原文に忠実に書き起こすこと
-- 文の途中で改行しないこと。段落の区切りのみ改行すること
-- 文字間に余計なスペースを入れないこと。日本語の文字間にスペースは不要
-- 余計な説明・コメント・前置きは一切不要。認識したテキストのみを返すこと
-- 画像が不鮮明な場合は読み取れた部分だけを返すこと`,
+              image: { content: base64Data },
+              features: [{ type: "DOCUMENT_TEXT_DETECTION" }],
+              imageContext: {
+                languageHints: ["ja", "en"],
+              },
             },
           ],
-        },
-      ],
-    });
+        }),
+      }
+    );
 
-    const text = message.content[0].type === "text" ? message.content[0].text : "";
+    const data = await res.json();
 
-    return NextResponse.json({ text: text.trim() });
+    if (data.error) {
+      console.error("Vision API error:", data.error);
+      if (data.error.code === 403 || data.error.code === 429) {
+        return NextResponse.json({ error: "Google Cloud Vision APIの利用制限に達しました。" }, { status: 402 });
+      }
+      return NextResponse.json({ error: "テキスト認識に失敗しました" }, { status: 500 });
+    }
+
+    const annotation = data.responses?.[0]?.fullTextAnnotation;
+    const text = annotation?.text?.trim() ?? "";
+
+    if (!text) {
+      return NextResponse.json({ error: "テキストを検出できませんでした" }, { status: 400 });
+    }
+
+    return NextResponse.json({ text });
   } catch (e) {
     console.error("OCR error:", e);
-    if (isCreditOrRateLimitError(e)) {
-      return NextResponse.json({ error: "APIクレジットが不足しています。Anthropicコンソールで残高を確認してください。" }, { status: 402 });
-    }
     return NextResponse.json({ error: "テキスト認識に失敗しました" }, { status: 500 });
   }
 }
