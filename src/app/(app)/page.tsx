@@ -180,38 +180,26 @@ export default async function DashboardPage({
                   const expectedPct = (currentMonth / 12) * 100;
                   return (
                     <div
-                      className="absolute top-0 h-full w-0.5 bg-slate-400"
+                      className="absolute top-0 h-full w-[2px] bg-slate-500/70"
                       style={{ left: `${expectedPct}%` }}
                       title={`${currentMonth}月末の期待値: ${Math.round(goalPages * currentMonth / 12).toLocaleString()} P`}
                     />
                   );
                 })()}
               </div>
-              <div className="flex justify-between mt-1.5">
-                <p className="text-xs text-slate-400">
-                  残り {Math.max(goalPages - stats.totalPages, 0).toLocaleString()} P
-                </p>
-                {/* 今月あと何ページ */}
-                {isCurrentYear && pagesThisMonth !== undefined && stats.totalPages < goalPages && (() => {
-                  const remaining = goalPages - stats.totalPages;
-                  const monthsLeft = 12 - currentMonth + 1;
-                  const needed = Math.max(0, Math.ceil(remaining / monthsLeft - pagesThisMonth));
-                  return needed > 0 ? (
-                    <p className="text-xs text-blue-600 font-medium tabular-nums">
-                      今月あと {needed.toLocaleString()} P でペース通り
-                    </p>
-                  ) : (
-                    <p className="text-xs text-emerald-600 font-medium">今月のペース達成 ✓</p>
-                  );
-                })()}
-              </div>
-              {/* 期待値の凡例 */}
-              {isCurrentYear && stats.totalPages < goalPages && (
-                <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1.5">
-                  <span className="inline-block w-3 h-0.5 bg-slate-400 rounded" />
-                  {currentMonth}月末の期待値: {Math.round(goalPages * currentMonth / 12).toLocaleString()} P
-                </p>
-              )}
+              {/* 今月あと何ページ */}
+              {isCurrentYear && pagesThisMonth !== undefined && stats.totalPages < goalPages && (() => {
+                const remaining = goalPages - stats.totalPages;
+                const monthsLeft = 12 - currentMonth + 1;
+                const needed = Math.max(0, Math.ceil(remaining / monthsLeft - pagesThisMonth));
+                return needed > 0 ? (
+                  <p className="text-xs text-blue-600 font-medium tabular-nums mt-1.5">
+                    今月あと {needed.toLocaleString()} P でペース通り
+                  </p>
+                ) : (
+                  <p className="text-xs text-emerald-600 font-medium mt-1.5">今月のペース達成 ✓</p>
+                );
+              })()}
             </div>
 
             {/* バーンチャート */}

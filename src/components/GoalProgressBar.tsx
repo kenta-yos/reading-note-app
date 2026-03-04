@@ -48,24 +48,13 @@ export default function GoalProgressBar({
         />
         {currentMonth !== undefined && remaining > 0 && (
           <div
-            className="absolute top-0 h-full w-0.5 bg-slate-400"
+            className="absolute top-0 h-full w-[2px] bg-slate-500/70"
             style={{ left: `${(currentMonth / 12) * 100}%` }}
             title={`${currentMonth}月末の期待値: ${Math.round(goal * currentMonth / 12).toLocaleString()} ページ`}
           />
         )}
       </div>
-      <div className="flex justify-between mt-2 flex-wrap gap-y-1">
-        <p className="text-xs text-slate-400">{pct.toFixed(1)}% 達成</p>
-        <p className="text-xs text-slate-400">
-          残り {remaining.toLocaleString()} ページ
-        </p>
-      </div>
-      {currentMonth !== undefined && remaining > 0 && (
-        <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1.5">
-          <span className="inline-block w-3 h-0.5 bg-slate-400 rounded" />
-          {currentMonth}月末の期待値: {Math.round(goal * currentMonth / 12).toLocaleString()} ページ
-        </p>
-      )}
+      <p className="text-xs text-slate-400 mt-2">{pct.toFixed(1)}% 達成</p>
       {neededThisMonth !== null && (
         <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-2">
           <span className="text-xs text-slate-500">今月あと</span>
