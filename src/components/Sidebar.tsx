@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const navItems = [
   { href: "/", label: "ダッシュボード", icon: "📊" },
   { href: "/books", label: "読書記録", icon: "📚" },
+  { href: "/memo", label: "読書メモ", icon: "📝" },
   { href: "/books/new", label: "本を登録", icon: "➕" },
   { href: "/analytics", label: "知識分析", icon: "🧠" },
   { href: "/discover", label: "新刊を探す", icon: "🔍" },

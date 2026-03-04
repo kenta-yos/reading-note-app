@@ -5,6 +5,7 @@ import ActionLink from "@/components/ActionLink";
 import BackButton from "@/components/BackButton";
 import StatusChanger from "@/components/StatusChanger";
 import { BookStatus } from "@/lib/types";
+import MemoSection from "@/components/MemoSection";
 
 export default async function BookDetailPage({
   params,
@@ -146,6 +147,9 @@ export default async function BookDetailPage({
           <p className="text-sm text-slate-400">まだ記録されていません</p>
         )}
       </div>
+
+      {/* 読書メモセクション（読中の本のみ） */}
+      {book.status === "READING" && <MemoSection bookId={id} />}
     </div>
   );
 }

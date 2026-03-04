@@ -1,0 +1,16 @@
+{
+  "name": "読書メモ",
+  "short_name": "読書メモ",
+  "description": "読書中のメモ・引用を記録",
+  "start_url": "/memo",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#1e293b",
+  "icons": [
+    {
+      "src": "/read-memo-icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

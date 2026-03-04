@@ -76,3 +76,16 @@ export type CategoryEvolutionData = {
   categories: string[];
   data: CategoryEvolutionPoint[];
 };
+
+export type ReadingMemo = {
+  id: string;
+  bookId: string;
+  content: string;
+  quote: string | null;
+  page: number | null;
+  createdAt: Date;
+};
+
+export type ReadingMemoWithBook = ReadingMemo & {
+  book: Pick<Book, "id" | "title" | "author">;
+};
