@@ -7,7 +7,6 @@ import Spinner from "./Spinner";
 const navItems = [
   { href: "/", label: "ホーム", icon: "📊" },
   { href: "/books", label: "記録", icon: "📚" },
-  { href: "/memo", label: "メモ", icon: "📝" },
   { href: "/discover", label: "新刊", icon: "🔍" },
   { href: "/analytics", label: "分析", icon: "🧠" },
 ];
@@ -68,7 +67,7 @@ export default function BottomNav() {
       }`}
       style={{ bottom: "calc(env(safe-area-inset-bottom) + 12px)" }}
     >
-      <div className="grid grid-cols-5">
+      <div className="grid grid-cols-4">
         {navItems.map((item, idx) => {
           const active = isActive(item.href);
           const loading = pending === item.href;
