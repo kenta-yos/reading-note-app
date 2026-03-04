@@ -89,7 +89,7 @@ export default function ConceptForceGraph({ data }: { data: ConceptGraphData }) 
           .radius((d) => Math.max(d.r + 60, d.labelW / 2 + 18))
           .iterations(12))
         .stop()
-        .tick(1500);
+        .tick(300);
 
       // ─── クランプ関数（境界内に収める） ─────────────────────────
       const clampNode = (n: SimNode) => {

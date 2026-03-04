@@ -32,6 +32,11 @@ model Book {
   statusChangedAt DateTime      @default(now())
   createdAt       DateTime      @default(now())
   keywords      BookKeyword[]
+
+  @@index([status])
+  @@index([readAt])
+  @@index([category])
+  @@index([status, readAt])
 }
 
 model BookKeyword {

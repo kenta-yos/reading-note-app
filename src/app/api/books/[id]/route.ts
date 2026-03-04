@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { BookStatus as PrismaBookStatus } from "@prisma/client";
 
 export async function GET(
@@ -64,6 +65,7 @@ export async function PUT(
       },
     });
 
+    revalidatePath("/", "layout");
     return NextResponse.json(book);
   } catch {
     return NextResponse.json({ error: "更新失敗" }, { status: 500 });
@@ -97,6 +99,7 @@ export async function PATCH(
       data: { status: newStatus, readAt: resolvedReadAt, statusChangedAt: new Date() },
     });
 
+    revalidatePath("/", "layout");
     return NextResponse.json(book);
   } catch {
     return NextResponse.json({ error: "更新失敗" }, { status: 500 });
@@ -110,6 +113,7 @@ export async function DELETE(
   const { id } = await params;
   try {
     await prisma.book.delete({ where: { id } });
+    revalidatePath("/", "layout");
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: "削除失敗" }, { status: 500 });

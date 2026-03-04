@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { BookStatus as PrismaBookStatus } from "@prisma/client";
 
 export async function GET(req: Request) {
@@ -85,6 +86,7 @@ export async function POST(req: Request) {
       },
     });
 
+    revalidatePath("/", "layout");
     return NextResponse.json(book);
   } catch {
     return NextResponse.json({ error: "保存失敗" }, { status: 500 });

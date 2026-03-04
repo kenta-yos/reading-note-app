@@ -35,24 +35,29 @@ export async function getAvailableYears(): Promise<number[]> {
 }
 
 export async function getStatsForAllYears(): Promise<StatsResponse> {
-  const books = await prisma.book.findMany({ orderBy: { readAt: "asc" } });
+  const [aggregation, categoryRows] = await Promise.all([
+    prisma.book.aggregate({
+      _count: { id: true },
+      _sum: { pages: true },
+    }),
+    prisma.$queryRaw<{ category: string; pages: bigint; count: bigint }[]>`
+      SELECT COALESCE(category, 'その他') AS category,
+             COALESCE(SUM(pages), 0) AS pages,
+             COUNT(*) AS count
+      FROM "Book"
+      GROUP BY COALESCE(category, 'その他')
+    `,
+  ]);
 
-  const totalBooks = books.length;
-  const totalPages = books.reduce((sum, b) => sum + (b.pages ?? 0), 0);
-
-  const categoryMap = new Map<string, { pages: number; count: number }>();
-  for (const book of books) {
-    const cat = book.category ?? "その他";
-    const prev = categoryMap.get(cat) ?? { pages: 0, count: 0 };
-    categoryMap.set(cat, { pages: prev.pages + (book.pages ?? 0), count: prev.count + 1 });
-  }
-  const categoryTotals: CategoryTotal[] = Array.from(categoryMap.entries()).map(
-    ([category, { pages, count }]) => ({ category, pages, count })
-  );
+  const categoryTotals: CategoryTotal[] = categoryRows.map((r) => ({
+    category: r.category,
+    pages: Number(r.pages),
+    count: Number(r.count),
+  }));
 
   return {
-    totalBooks,
-    totalPages,
+    totalBooks: aggregation._count.id,
+    totalPages: aggregation._sum.pages ?? 0,
     monthlyPages: [],
     categoryTotals,
     monthlyByCategory: [],
@@ -64,64 +69,66 @@ export async function getStatsForYear(year: number): Promise<StatsResponse> {
   const startDate = new Date(year, 0, 1);
   const endDate = new Date(year + 1, 0, 1);
 
-  const [books, goal] = await Promise.all([
-    prisma.book.findMany({
-      where: {
-        readAt: {
-          gte: startDate,
-          lt: endDate,
-        },
-      },
-      orderBy: { readAt: "asc" },
+  const [aggregation, monthlyRows, categoryRows, monthlyCatRows, goal] = await Promise.all([
+    prisma.book.aggregate({
+      where: { readAt: { gte: startDate, lt: endDate } },
+      _count: { id: true },
+      _sum: { pages: true },
     }),
+    prisma.$queryRaw<{ month: number; pages: bigint }[]>`
+      SELECT EXTRACT(MONTH FROM "readAt")::int AS month,
+             COALESCE(SUM(pages), 0) AS pages
+      FROM "Book"
+      WHERE "readAt" >= ${startDate} AND "readAt" < ${endDate}
+      GROUP BY month
+    `,
+    prisma.$queryRaw<{ category: string; pages: bigint; count: bigint }[]>`
+      SELECT COALESCE(category, 'その他') AS category,
+             COALESCE(SUM(pages), 0) AS pages,
+             COUNT(*) AS count
+      FROM "Book"
+      WHERE "readAt" >= ${startDate} AND "readAt" < ${endDate}
+      GROUP BY COALESCE(category, 'その他')
+    `,
+    prisma.$queryRaw<{ month: number; category: string; pages: bigint }[]>`
+      SELECT EXTRACT(MONTH FROM "readAt")::int AS month,
+             COALESCE(category, 'その他') AS category,
+             COALESCE(SUM(pages), 0) AS pages
+      FROM "Book"
+      WHERE "readAt" >= ${startDate} AND "readAt" < ${endDate}
+      GROUP BY month, COALESCE(category, 'その他')
+    `,
     prisma.annualGoal.findUnique({ where: { year } }),
   ]);
 
-  const totalBooks = books.length;
-  const totalPages = books.reduce((sum, b) => sum + (b.pages ?? 0), 0);
-
-  // Monthly pages
+  // Monthly pages (ensure all 12 months present)
   const monthlyMap = new Map<number, number>();
   for (let m = 1; m <= 12; m++) monthlyMap.set(m, 0);
-  for (const book of books) {
-    if (book.readAt) {
-      const month = book.readAt.getMonth() + 1;
-      monthlyMap.set(month, (monthlyMap.get(month) ?? 0) + (book.pages ?? 0));
-    }
-  }
+  for (const r of monthlyRows) monthlyMap.set(r.month, Number(r.pages));
   const monthlyPages: MonthlyPages[] = Array.from(monthlyMap.entries()).map(
     ([month, pages]) => ({ month, pages })
   );
 
-  // Category totals
-  const categoryMap = new Map<string, { pages: number; count: number }>();
-  for (const book of books) {
-    const cat = book.category ?? "その他";
-    const prev = categoryMap.get(cat) ?? { pages: 0, count: 0 };
-    categoryMap.set(cat, { pages: prev.pages + (book.pages ?? 0), count: prev.count + 1 });
-  }
-  const categoryTotals: CategoryTotal[] = Array.from(categoryMap.entries()).map(
-    ([category, { pages, count }]) => ({ category, pages, count })
-  );
+  const categoryTotals: CategoryTotal[] = categoryRows.map((r) => ({
+    category: r.category,
+    pages: Number(r.pages),
+    count: Number(r.count),
+  }));
 
   // Monthly by category
   const monthlyCatMap = new Map<number, Record<string, number>>();
   for (let m = 1; m <= 12; m++) monthlyCatMap.set(m, {});
-  for (const book of books) {
-    if (book.readAt) {
-      const month = book.readAt.getMonth() + 1;
-      const cat = book.category ?? "その他";
-      const entry = monthlyCatMap.get(month)!;
-      entry[cat] = (entry[cat] ?? 0) + (book.pages ?? 0);
-    }
+  for (const r of monthlyCatRows) {
+    const entry = monthlyCatMap.get(r.month)!;
+    entry[r.category] = Number(r.pages);
   }
   const monthlyByCategory: MonthlyByCategory[] = Array.from(
     monthlyCatMap.entries()
   ).map(([month, cats]) => ({ month, ...cats }));
 
   return {
-    totalBooks,
-    totalPages,
+    totalBooks: aggregation._count.id,
+    totalPages: aggregation._sum.pages ?? 0,
     monthlyPages,
     categoryTotals,
     monthlyByCategory,
@@ -408,27 +415,23 @@ export async function getVocabHealth(): Promise<VocabHealthData> {
 export async function getYearlyTrend(): Promise<
   { year: number; pages: number; goal: number | null }[]
 > {
-  const [books, goals] = await Promise.all([
-    prisma.book.findMany({
-      where: { readAt: { not: null } },
-      select: { readAt: true, pages: true },
-    }),
+  const [yearRows, goals] = await Promise.all([
+    prisma.$queryRaw<{ year: number; pages: bigint }[]>`
+      SELECT EXTRACT(YEAR FROM "readAt")::int AS year,
+             COALESCE(SUM(pages), 0) AS pages
+      FROM "Book"
+      WHERE "readAt" IS NOT NULL
+      GROUP BY year
+      ORDER BY year
+    `,
     prisma.annualGoal.findMany(),
   ]);
 
   const goalMap = new Map(goals.map((g) => [g.year, g.pageGoal]));
-  const yearMap = new Map<number, number>();
 
-  for (const book of books) {
-    const year = book.readAt!.getFullYear();
-    yearMap.set(year, (yearMap.get(year) ?? 0) + (book.pages ?? 0));
-  }
-
-  return [...yearMap.entries()]
-    .sort((a, b) => a[0] - b[0])
-    .map(([year, pages]) => ({
-      year,
-      pages,
-      goal: goalMap.get(year) ?? null,
-    }));
+  return yearRows.map((r) => ({
+    year: r.year,
+    pages: Number(r.pages),
+    goal: goalMap.get(r.year) ?? null,
+  }));
 }

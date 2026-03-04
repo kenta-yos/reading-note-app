@@ -1,5 +1,3 @@
-export const dynamic = "force-dynamic";
-
 import { prisma } from "@/lib/prisma";
 import BookList from "@/components/BookList";
 import BookFilters from "@/components/BookFilters";
@@ -63,7 +61,12 @@ async function BookListServer({ searchParams }: { searchParams: SearchParams }) 
 
   return (
     <BookList
-      books={JSON.parse(JSON.stringify(items))}
+      books={items.map((b) => ({
+        ...b,
+        readAt: b.readAt?.toISOString() ?? null,
+        statusChangedAt: b.statusChangedAt.toISOString(),
+        createdAt: b.createdAt.toISOString(),
+      }))}
       totalCount={totalCount}
       hasMore={hasMore}
     />

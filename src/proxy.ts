@@ -6,6 +6,24 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+// Cache CryptoKey per secret to avoid re-importing on every request
+let cachedKey: CryptoKey | null = null;
+let cachedSecret: string | null = null;
+
+async function getCryptoKey(secret: string): Promise<CryptoKey> {
+  if (cachedKey && cachedSecret === secret) return cachedKey;
+  const enc = new TextEncoder();
+  cachedKey = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  cachedSecret = secret;
+  return cachedKey;
+}
+
 async function verifyToken(token: string, secret: string): Promise<boolean> {
   const dotIndex = token.lastIndexOf(".");
   if (dotIndex === -1) return false;
@@ -13,13 +31,7 @@ async function verifyToken(token: string, secret: string): Promise<boolean> {
   const sig = token.slice(dotIndex + 1);
 
   const enc = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    "raw",
-    enc.encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
+  const key = await getCryptoKey(secret);
   const signature = await crypto.subtle.sign("HMAC", key, enc.encode(payload));
   const expected = Array.from(new Uint8Array(signature))
     .map((b) => b.toString(16).padStart(2, "0"))

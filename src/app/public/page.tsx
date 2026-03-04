@@ -11,7 +11,7 @@ type Evolution = {
   keyBooks: string[];
 };
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 export default async function PublicPage() {
   // Fetch all read books - explicitly exclude notes and rating

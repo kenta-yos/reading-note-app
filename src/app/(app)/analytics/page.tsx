@@ -1,4 +1,4 @@
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 import { getConceptGraph, getConceptBump } from "@/lib/concepts";
 import { getKeywordHeatmap } from "@/lib/keywords";
