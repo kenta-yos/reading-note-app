@@ -135,7 +135,7 @@ export default async function BookDetailPage({
       )}
 
       {/* 感想 */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm mb-4">
         <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">
           感想・メモ
         </h2>
