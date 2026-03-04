@@ -2,7 +2,15 @@ import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 
-export async function GET(req: Request) {
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ id?: string[] }> }
+) {
+  const { id } = await params;
+  if (id && id.length > 0) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   const { searchParams } = new URL(req.url);
   const bookId = searchParams.get("bookId");
   const cursor = searchParams.get("cursor");
@@ -27,7 +35,15 @@ export async function GET(req: Request) {
   return NextResponse.json({ memos: items, nextCursor });
 }
 
-export async function POST(req: Request) {
+export async function POST(
+  req: Request,
+  { params }: { params: Promise<{ id?: string[] }> }
+) {
+  const { id } = await params;
+  if (id && id.length > 0) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   try {
     const { bookId, content, quote, page } = await req.json();
 
@@ -59,5 +75,23 @@ export async function POST(req: Request) {
     return NextResponse.json(memo);
   } catch {
     return NextResponse.json({ error: "保存失敗" }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ id?: string[] }> }
+) {
+  const { id } = await params;
+  if (!id || id.length === 0) {
+    return NextResponse.json({ error: "ID is required" }, { status: 400 });
+  }
+
+  try {
+    await prisma.readingMemo.delete({ where: { id: id[0] } });
+    revalidatePath("/memo");
+    return NextResponse.json({ ok: true });
+  } catch {
+    return NextResponse.json({ error: "削除失敗" }, { status: 500 });
   }
 }
