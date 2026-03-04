@@ -20,7 +20,6 @@ export default function OcrCamera({ onQuote, onClose }: Props) {
   const [initializing, setInitializing] = useState(true);
   const [recognizedText, setRecognizedText] = useState("");
   const [pageNum, setPageNum] = useState("");
-  const [progress, setProgress] = useState(0);
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
@@ -85,19 +84,20 @@ export default function OcrCamera({ onQuote, onClose }: Props) {
     if (!ctx) return;
     ctx.drawImage(video, 0, 0);
 
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+
     stopCamera();
     setStage("recognizing");
 
     try {
-      const Tesseract = await import("tesseract.js");
-      const result = await Tesseract.recognize(canvas, "jpn+eng", {
-        logger: (m) => {
-          if (m.status === "recognizing text") {
-            setProgress(Math.round(m.progress * 100));
-          }
-        },
+      const res = await fetch("/api/ocr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: dataUrl }),
       });
-      setRecognizedText(result.data.text.trim());
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setRecognizedText(data.text);
       setStage("edit");
     } catch {
       setCameraError("テキスト認識に失敗しました");
@@ -161,10 +161,7 @@ export default function OcrCamera({ onQuote, onClose }: Props) {
         {stage === "recognizing" && (
           <div className="px-4 py-12 text-center">
             <Spinner className="w-8 h-8 text-blue-500 mx-auto mb-3" />
-            <p className="text-sm text-slate-600">テキストを認識中... {progress}%</p>
-            <div className="w-48 mx-auto mt-3 bg-slate-200 rounded-full h-1.5">
-              <div className="bg-blue-500 h-1.5 rounded-full transition-all" style={{ width: `${progress}%` }} />
-            </div>
+            <p className="text-sm text-slate-600">AIがテキストを読み取り中...</p>
           </div>
         )}
 
