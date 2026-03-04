@@ -119,17 +119,19 @@ export default async function DiscoverPage() {
   for (const b of allBooks) {
     if (b.isbn && b.price != null) priceByIsbn[b.isbn.replace(/-/g, "")] = b.price;
   }
-  const bookmarkedBooks: NDLBook[] = bookmarks.map((b) => ({
-    title: b.title,
-    author: b.author ?? "",
-    publisher: b.publisher ?? "",
-    issued: b.issued,
-    isbn: b.isbn,
-    ndcCode: b.ndcCode,
-    discipline: b.discipline,
-    ndlUrl: b.ndlUrl,
-    price: priceByIsbn[b.isbn] ?? null,
-  }));
+  const bookmarkedBooks: NDLBook[] = bookmarks
+    .map((b) => ({
+      title: b.title,
+      author: b.author ?? "",
+      publisher: b.publisher ?? "",
+      issued: b.issued,
+      isbn: b.isbn,
+      ndcCode: b.ndcCode,
+      discipline: b.discipline,
+      ndlUrl: b.ndlUrl,
+      price: priceByIsbn[b.isbn] ?? null,
+    }))
+    .sort((a, b) => b.issued.localeCompare(a.issued));
 
   const userDisciplines = disciplineRows.map((r) => r.discipline!).filter(Boolean);
 
