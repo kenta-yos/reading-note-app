@@ -13,9 +13,14 @@ type Props = {
 
 export default function MemoCard({ memo, onDelete, showBookTitle = true }: Props) {
   const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const handleDelete = async () => {
     if (deleting) return;
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
     setDeleting(true);
     try {
       const res = await fetch(`/api/memos/${memo.id}`, { method: "DELETE" });
@@ -42,16 +47,34 @@ export default function MemoCard({ memo, onDelete, showBookTitle = true }: Props
             {relativeTime(memo.createdAt)}
           </span>
         </div>
-        <button
-          onClick={handleDelete}
-          disabled={deleting}
-          className="text-slate-300 hover:text-red-500 transition-colors shrink-0 p-0.5"
-          aria-label="削除"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+        {confirmDelete ? (
+          <div className="flex items-center gap-1 shrink-0">
+            <span className="text-[11px] text-red-500">削除しますか？</span>
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="text-[11px] text-white bg-red-500 hover:bg-red-600 px-2 py-0.5 rounded transition-colors"
+            >
+              {deleting ? "..." : "削除"}
+            </button>
+            <button
+              onClick={() => setConfirmDelete(false)}
+              className="text-[11px] text-slate-400 hover:text-slate-600 px-1.5 py-0.5 rounded transition-colors"
+            >
+              戻る
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={handleDelete}
+            className="text-slate-300 hover:text-red-500 transition-colors shrink-0 p-0.5"
+            aria-label="削除"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {memo.quote && (
