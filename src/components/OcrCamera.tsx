@@ -111,11 +111,15 @@ export default function OcrCamera({ onQuote, onClose }: Props) {
     };
   };
 
+  const dragging = useRef(false);
+  const prevSelection = useRef<Rect | null>(null);
+
   const onPointerDown = (e: React.TouchEvent | React.MouseEvent) => {
     const pos = getPos(e);
     if (!pos) return;
     dragStart.current = pos;
-    setSelection({ x: pos.x, y: pos.y, w: 0, h: 0 });
+    dragging.current = false;
+    prevSelection.current = selection;
   };
 
   const onPointerMove = (e: React.TouchEvent | React.MouseEvent) => {
@@ -123,16 +127,26 @@ export default function OcrCamera({ onQuote, onClose }: Props) {
     const pos = getPos(e);
     if (!pos) return;
     const start = dragStart.current;
+    const dx = Math.abs(pos.x - start.x);
+    const dy = Math.abs(pos.y - start.y);
+    // 最小ドラッグ距離を超えたら選択開始
+    if (!dragging.current && dx < 0.02 && dy < 0.02) return;
+    dragging.current = true;
     setSelection({
       x: Math.min(start.x, pos.x),
       y: Math.min(start.y, pos.y),
-      w: Math.abs(pos.x - start.x),
-      h: Math.abs(pos.y - start.y),
+      w: dx,
+      h: dy,
     });
   };
 
   const onPointerUp = () => {
+    // ドラッグしていない（タップのみ）→ 既存の選択を維持
+    if (!dragging.current && prevSelection.current) {
+      setSelection(prevSelection.current);
+    }
     dragStart.current = null;
+    dragging.current = false;
   };
 
   // 選択範囲をクロップしてOCR
@@ -235,42 +249,50 @@ export default function OcrCamera({ onQuote, onClose }: Props) {
         {/* Crop stage */}
         {stage === "crop" && (
           <>
-            <div
-              ref={cropRef}
-              className="relative bg-black select-none touch-none cursor-crosshair"
-              onMouseDown={onPointerDown}
-              onMouseMove={onPointerMove}
-              onMouseUp={onPointerUp}
-              onTouchStart={onPointerDown}
-              onTouchMove={onPointerMove}
-              onTouchEnd={onPointerUp}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={capturedImage} alt="撮影画像" className="w-full block" draggable={false} />
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <div
+                ref={cropRef}
+                className="relative bg-black select-none touch-none cursor-crosshair"
+                onMouseDown={onPointerDown}
+                onMouseMove={onPointerMove}
+                onMouseUp={onPointerUp}
+                onTouchStart={onPointerDown}
+                onTouchMove={onPointerMove}
+                onTouchEnd={onPointerUp}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={capturedImage} alt="撮影画像" className="w-full block" draggable={false} />
 
-              {/* 暗いオーバーレイ（選択範囲の外） */}
-              {selection && selection.w > 0.01 && selection.h > 0.01 && (
-                <>
-                  {/* top */}
-                  <div className="absolute left-0 right-0 top-0 bg-black/50" style={{ height: `${selection.y * 100}%` }} />
-                  {/* bottom */}
-                  <div className="absolute left-0 right-0 bottom-0 bg-black/50" style={{ height: `${(1 - selection.y - selection.h) * 100}%` }} />
-                  {/* left */}
-                  <div className="absolute left-0 bg-black/50" style={{ top: `${selection.y * 100}%`, height: `${selection.h * 100}%`, width: `${selection.x * 100}%` }} />
-                  {/* right */}
-                  <div className="absolute right-0 bg-black/50" style={{ top: `${selection.y * 100}%`, height: `${selection.h * 100}%`, width: `${(1 - selection.x - selection.w) * 100}%` }} />
-                  {/* 選択枠 */}
-                  <div
-                    className="absolute border-2 border-blue-400 rounded-sm"
-                    style={{
-                      left: `${selection.x * 100}%`,
-                      top: `${selection.y * 100}%`,
-                      width: `${selection.w * 100}%`,
-                      height: `${selection.h * 100}%`,
-                    }}
-                  />
-                </>
-              )}
+                {/* 暗いオーバーレイ（選択範囲の外） */}
+                {selection && selection.w > 0.02 && selection.h > 0.02 && (
+                  <>
+                    <div className="absolute left-0 right-0 top-0 bg-black/50" style={{ height: `${selection.y * 100}%` }} />
+                    <div className="absolute left-0 right-0 bottom-0 bg-black/50" style={{ height: `${(1 - selection.y - selection.h) * 100}%` }} />
+                    <div className="absolute left-0 bg-black/50" style={{ top: `${selection.y * 100}%`, height: `${selection.h * 100}%`, width: `${selection.x * 100}%` }} />
+                    <div className="absolute right-0 bg-black/50" style={{ top: `${selection.y * 100}%`, height: `${selection.h * 100}%`, width: `${(1 - selection.x - selection.w) * 100}%` }} />
+                    {/* 選択枠 */}
+                    <div
+                      className="absolute border-2 border-blue-400 rounded-sm"
+                      style={{
+                        left: `${selection.x * 100}%`,
+                        top: `${selection.y * 100}%`,
+                        width: `${selection.w * 100}%`,
+                        height: `${selection.h * 100}%`,
+                      }}
+                    >
+                      {/* リセットボタン */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setSelection(null); }}
+                        className="absolute -top-3 -right-3 w-6 h-6 bg-white rounded-full shadow-md flex items-center justify-center z-10"
+                      >
+                        <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
             <div className="px-4 py-3 border-t border-slate-200 flex items-center justify-between gap-2 shrink-0">
               <p className="text-[11px] text-slate-400">
