@@ -56,10 +56,11 @@ export default function MemoCard({ memo, onDelete, showBookTitle = true }: Props
 
       {memo.quote && (
         <div className="border-l-3 border-amber-400 bg-amber-50/50 pl-3 py-2 mb-2 rounded-r-lg">
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-600 mb-1">
+            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M4.583 17.321C3.553 16.227 3 15 3 13.011c0-3.5 2.457-6.637 6.03-8.188l.893 1.378c-3.335 1.804-3.987 4.145-4.247 5.621.537-.278 1.24-.375 1.929-.311 1.804.167 3.226 1.648 3.226 3.489a3.5 3.5 0 01-3.5 3.5c-1.073 0-2.099-.49-2.748-1.179zm10 0C13.553 16.227 13 15 13 13.011c0-3.5 2.457-6.637 6.03-8.188l.893 1.378c-3.335 1.804-3.987 4.145-4.247 5.621.537-.278 1.24-.375 1.929-.311 1.804.167 3.226 1.648 3.226 3.489a3.5 3.5 0 01-3.5 3.5c-1.073 0-2.099-.49-2.748-1.179z"/></svg>
+            引用{memo.page != null && ` - p.${memo.page}`}
+          </span>
           <p className="text-sm text-slate-600 italic whitespace-pre-wrap">{memo.quote}</p>
-          {memo.page != null && (
-            <span className="text-[11px] text-amber-600 mt-1 inline-block">p.{memo.page}</span>
-          )}
         </div>
       )}
 
