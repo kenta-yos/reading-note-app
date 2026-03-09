@@ -12,8 +12,8 @@ export default function FloatingAddButton() {
   const lastScrollY = useRef(0);
   const ticking = useRef(false);
 
-  // 登録ページ自体では非表示
-  const isNewPage = pathname === "/books/new";
+  // 記録ページのみ表示
+  const isBooksList = pathname === "/books";
 
   useEffect(() => {
     setLoading(false);
@@ -38,7 +38,7 @@ export default function FloatingAddButton() {
     return () => window.removeEventListener("scroll", onScroll);
   }, [onScroll]);
 
-  if (isNewPage) return null;
+  if (!isBooksList) return null;
 
   // statusパラメータがあれば引き継ぐ
   const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;

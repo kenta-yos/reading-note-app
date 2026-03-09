@@ -101,13 +101,6 @@ export default async function BooksPage({
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <ActionLink
-            href={`/books/new${params.status ? `?status=${params.status}` : ""}`}
-            className="flex items-center justify-center gap-1 px-3 h-10 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold transition-colors shadow-sm"
-            spinnerClassName="w-4 h-4 text-white"
-          >
-            <span className="text-base leading-none">+</span>登録
-          </ActionLink>
-          <ActionLink
             href="/books/next-read"
             className="flex items-center justify-center w-10 h-10 rounded-lg border border-violet-200 bg-violet-50 text-lg hover:border-violet-300 hover:bg-violet-100 transition-colors shadow-sm"
             spinnerClassName="w-4 h-4 text-violet-500"
