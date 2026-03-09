@@ -125,13 +125,11 @@ export default async function BooksPage({
       </div>
 
       <Suspense>
-        <BookFilters categories={categories} years={years} />
-      </Suspense>
-
-      <Suspense
-        fallback={<BookListSkeleton />}
-      >
-        <BookListServer searchParams={params} />
+        <BookFilters categories={categories} years={years}>
+          <Suspense fallback={<BookListSkeleton />}>
+            <BookListServer searchParams={params} />
+          </Suspense>
+        </BookFilters>
       </Suspense>
     </div>
   );
