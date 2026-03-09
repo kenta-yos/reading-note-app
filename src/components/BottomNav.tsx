@@ -5,8 +5,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import Spinner from "./Spinner";
 
 const navItems = [
-  { href: "/", label: "ホーム", icon: "📊" },
   { href: "/books", label: "記録", icon: "📚" },
+  { href: "/dashboard", label: "ホーム", icon: "📊" },
   { href: "/discover", label: "新刊", icon: "🔍" },
   { href: "/analytics", label: "分析", icon: "🧠" },
 ];
@@ -43,16 +43,14 @@ export default function BottomNav() {
   }, [onScroll]);
 
   const isActive = (href: string) =>
-    href === "/"
-      ? pathname === "/"
-      : pathname === href ||
-        (pathname.startsWith(href + "/") &&
-          !navItems.some(
-            (other) =>
-              other.href !== href &&
-              other.href.startsWith(href) &&
-              pathname.startsWith(other.href)
-          ));
+    pathname === href ||
+    (pathname.startsWith(href + "/") &&
+      !navItems.some(
+        (other) =>
+          other.href !== href &&
+          other.href.startsWith(href) &&
+          pathname.startsWith(other.href)
+      ));
 
   const handleTap = (href: string) => {
     if (isActive(href) || pending !== null) return;

@@ -1,5 +1,6 @@
 import Sidebar from "@/components/Sidebar";
 import BottomNav from "@/components/BottomNav";
+import FloatingAddButton from "@/components/FloatingAddButton";
 import PullToRefresh from "@/components/ui/PullToRefresh";
 
 export default function AppLayout({
@@ -21,7 +22,8 @@ export default function AppLayout({
           </PullToRefresh>
         </main>
       </div>
-      {/* Mobile only bottom nav */}
+      {/* Mobile only */}
+      <FloatingAddButton />
       <BottomNav />
     </>
   );

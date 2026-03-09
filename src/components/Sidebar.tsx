@@ -4,8 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const navItems = [
-  { href: "/", label: "ダッシュボード", icon: "📊" },
   { href: "/books", label: "読書記録", icon: "📚" },
+  { href: "/dashboard", label: "ダッシュボード", icon: "📊" },
   { href: "/books/new", label: "本を登録", icon: "➕" },
   { href: "/analytics", label: "知識分析", icon: "🧠" },
   { href: "/discover", label: "新刊を探す", icon: "🔍" },
@@ -24,16 +24,14 @@ export default function Sidebar() {
       <nav className="flex flex-col gap-1">
         {navItems.map((item) => {
           const isActive =
-            item.href === "/"
-              ? pathname === "/"
-              : pathname === item.href ||
-                (pathname.startsWith(item.href + "/") &&
-                  !navItems.some(
-                    (other) =>
-                      other.href !== item.href &&
-                      other.href.startsWith(item.href) &&
-                      pathname.startsWith(other.href)
-                  ));
+            pathname === item.href ||
+            (pathname.startsWith(item.href + "/") &&
+              !navItems.some(
+                (other) =>
+                  other.href !== item.href &&
+                  other.href.startsWith(item.href) &&
+                  pathname.startsWith(other.href)
+              ));
           return (
             <Link
               key={item.href}
