@@ -88,6 +88,17 @@ export default function PublicHeader() {
             </svg>
           </a>
           <a
+            href="https://www.tiktok.com/@ken_book_lover"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-slate-400 hover:text-slate-800 transition-colors"
+            aria-label="TikTok"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1v-3.5a6.37 6.37 0 0 0-.79-.05A6.34 6.34 0 0 0 3.15 15a6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.34-6.34V8.7a8.18 8.18 0 0 0 4.76 1.52v-3.4a4.85 4.85 0 0 1-1-.13z" />
+            </svg>
+          </a>
+          <a
             href="https://bsky.app/profile/yomuhito21.bsky.social"
             target="_blank"
             rel="noopener noreferrer"
