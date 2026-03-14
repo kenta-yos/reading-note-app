@@ -8,7 +8,7 @@ import { API_ERROR_SENTINEL } from "@/lib/keyword-extractor";
 import Link from "next/link";
 import ConceptForceGraph from "@/components/charts/ConceptForceGraph";
 import ConceptBumpChart from "@/components/charts/ConceptBumpChart";
-import KnowledgeRadarChart from "@/components/charts/KnowledgeRadarChart";
+import DisciplineBarChart from "@/components/charts/DisciplineBarChart";
 import VocabRefreshButton from "@/components/VocabRefreshButton";
 import VocabHealthCard from "@/components/VocabHealthCard";
 
@@ -175,19 +175,13 @@ export default async function AnalyticsPage() {
         <ConceptBumpChart data={bumpData} />
       </div>
 
-      {/* ── 学問分野のレーダーチャート ── */}
+      {/* ── 学問分野の分布 ── */}
       <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm mb-6 lg:mb-8">
         <h2 className="text-sm font-semibold text-slate-700 mb-0.5">学問分野の分布</h2>
         <p className="text-xs text-slate-400 mb-4">
-          各分野の読書量（ページ数ベース。面積が大きいほど多く読んでいる）
+          全{21}分野の読書量。赤字の分野が手薄なエリア
         </p>
-        <KnowledgeRadarChart
-          data={disciplineTotals.map((d) => ({
-            category: d.discipline,
-            pages: d.pages,
-            count: d.count,
-          }))}
-        />
+        <DisciplineBarChart data={disciplineTotals} />
       </div>
 
       {/* ── 読書ラボへのリンク ── */}

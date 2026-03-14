@@ -41,11 +41,11 @@ export async function getStatsForAllYears(): Promise<StatsResponse> {
       _sum: { pages: true },
     }),
     prisma.$queryRaw<{ category: string; pages: bigint; count: bigint }[]>`
-      SELECT COALESCE(category, 'その他') AS category,
+      SELECT COALESCE(discipline, 'その他') AS category,
              COALESCE(SUM(pages), 0) AS pages,
              COUNT(*) AS count
       FROM "Book"
-      GROUP BY COALESCE(category, 'その他')
+      GROUP BY COALESCE(discipline, 'その他')
     `,
   ]);
 
@@ -83,20 +83,20 @@ export async function getStatsForYear(year: number): Promise<StatsResponse> {
       GROUP BY month
     `,
     prisma.$queryRaw<{ category: string; pages: bigint; count: bigint }[]>`
-      SELECT COALESCE(category, 'その他') AS category,
+      SELECT COALESCE(discipline, 'その他') AS category,
              COALESCE(SUM(pages), 0) AS pages,
              COUNT(*) AS count
       FROM "Book"
       WHERE "readAt" >= ${startDate} AND "readAt" < ${endDate}
-      GROUP BY COALESCE(category, 'その他')
+      GROUP BY COALESCE(discipline, 'その他')
     `,
     prisma.$queryRaw<{ month: number; category: string; pages: bigint }[]>`
       SELECT EXTRACT(MONTH FROM "readAt")::int AS month,
-             COALESCE(category, 'その他') AS category,
+             COALESCE(discipline, 'その他') AS category,
              COALESCE(SUM(pages), 0) AS pages
       FROM "Book"
       WHERE "readAt" >= ${startDate} AND "readAt" < ${endDate}
-      GROUP BY month, COALESCE(category, 'その他')
+      GROUP BY month, COALESCE(discipline, 'その他')
     `,
     prisma.annualGoal.findUnique({ where: { year } }),
   ]);

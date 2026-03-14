@@ -18,7 +18,7 @@ function limitAndGroup(data: CategoryTotal[]) {
   return [
     ...top,
     {
-      category: "その他",
+      category: "その他の分野",
       pages: rest.reduce((s, d) => s + d.pages, 0),
       count: rest.reduce((s, d) => s + d.count, 0),
     },

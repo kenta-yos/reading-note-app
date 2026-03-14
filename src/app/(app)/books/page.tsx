@@ -11,21 +11,26 @@ import { redirect } from "next/navigation";
 
 const DEFAULT_PAGE_SIZE = 10;
 
-async function getCategories(): Promise<string[]> {
-  const cats = await prisma.category.findMany({ orderBy: { name: "asc" } });
-  return cats.map((c) => c.name);
+async function getDisciplines(): Promise<string[]> {
+  const rows = await prisma.book.findMany({
+    where: { discipline: { not: null } },
+    select: { discipline: true },
+    distinct: ["discipline"],
+    orderBy: { discipline: "asc" },
+  });
+  return rows.map((r) => r.discipline!);
 }
 
 type SearchParams = {
   q?: string;
-  category?: string;
+  discipline?: string;
   year?: string;
   status?: string;
   take?: string;
 };
 
 async function BookListServer({ searchParams }: { searchParams: SearchParams }) {
-  const { year, category, q, status, take: takeParam } = searchParams;
+  const { year, discipline, q, status, take: takeParam } = searchParams;
   const take = Math.min(Number(takeParam) || DEFAULT_PAGE_SIZE, 200);
 
   const validStatus = status && status in BOOK_STATUSES ? (status as PrismaBookStatus) : undefined;
@@ -37,7 +42,7 @@ async function BookListServer({ searchParams }: { searchParams: SearchParams }) 
         lt: new Date(parseInt(year) + 1, 0, 1),
       }
     } : {}),
-    ...(category ? { category } : {}),
+    ...(discipline ? { discipline } : {}),
     ...(validStatus ? { status: validStatus } : {}),
     ...(q ? {
       OR: [
@@ -81,12 +86,12 @@ export default async function BooksPage({
   const params = await searchParams;
 
   // デフォルトで「読みたい」タブを開く
-  if (!params.status && !params.q && !params.category && !params.year) {
+  if (!params.status && !params.q && !params.discipline && !params.year) {
     redirect("/books?status=WANT_TO_READ");
   }
 
-  const [categories, availableYears] = await Promise.all([
-    getCategories(),
+  const [disciplines, availableYears] = await Promise.all([
+    getDisciplines(),
     getAvailableYears(),
   ]);
   const currentYear = new Date().getFullYear();
@@ -125,7 +130,7 @@ export default async function BooksPage({
       </div>
 
       <Suspense>
-        <BookFilters categories={categories} years={years}>
+        <BookFilters disciplines={disciplines} years={years}>
           <Suspense fallback={<BookListSkeleton />}>
             <BookListServer searchParams={params} />
           </Suspense>

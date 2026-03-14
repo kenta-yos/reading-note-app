@@ -238,16 +238,16 @@ export default async function DashboardPage({
       {/* ── 4. 知識分析 ── */}
       <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm mb-6 lg:mb-8">
         <h2 className="text-sm font-semibold text-slate-700 mb-0.5">知識分析</h2>
-        <p className="text-xs text-slate-400 mb-4">{year}年のカテゴリ内訳と概念ネットワーク</p>
+        <p className="text-xs text-slate-400 mb-4">{year}年の学問分野内訳と概念ネットワーク</p>
 
-        {/* カテゴリ横積み上げバー */}
+        {/* 学問分野 横積み上げバー */}
         {stats.categoryTotals.length > 0 ? (
           <div className="mb-6">
-            <p className="text-xs font-medium text-slate-500 mb-2">カテゴリ内訳</p>
+            <p className="text-xs font-medium text-slate-500 mb-2">学問分野内訳</p>
             <CategoryStackedBar data={stats.categoryTotals} />
           </div>
         ) : (
-          <p className="text-xs text-slate-400 mb-5">カテゴリデータがありません</p>
+          <p className="text-xs text-slate-400 mb-5">学問分野データがありません</p>
         )}
 
         {/* 知識の地形図 */}

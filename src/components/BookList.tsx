@@ -13,7 +13,7 @@ type BookData = {
   publisher: string | null;
   publishedYear: number | null;
   pages: number | null;
-  category: string | null;
+  discipline: string | null;
   rating: number | null;
   status: string;
   readAt: string | null;
@@ -85,7 +85,7 @@ export default function BookList({ books, totalCount, hasMore }: Props) {
             publisher={book.publisher}
             publishedYear={book.publishedYear}
             pages={book.pages}
-            category={book.category}
+            discipline={book.discipline}
             rating={book.rating}
             status={book.status as BookStatus}
             readAt={book.readAt ? new Date(book.readAt) : null}

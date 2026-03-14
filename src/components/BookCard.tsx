@@ -12,7 +12,7 @@ type BookCardProps = {
   publisher: string | null;
   publishedYear: number | null;
   pages: number | null;
-  category: string | null;
+  discipline: string | null;
   rating: number | null;
   status: BookStatus;
   readAt: Date | null;
@@ -26,7 +26,7 @@ export default function BookCard({
   publisher,
   publishedYear,
   pages,
-  category,
+  discipline,
   rating,
   status,
   readAt,
@@ -72,9 +72,9 @@ export default function BookCard({
       )}
       <div className="flex items-center justify-between">
         <div className="flex gap-2">
-          {category && (
+          {discipline && (
             <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
-              {category}
+              {discipline}
             </span>
           )}
         </div>

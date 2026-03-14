@@ -8,12 +8,12 @@ import Spinner from "./Spinner";
 type TabKey = BookStatus | null;
 
 type Props = {
-  categories: string[];
+  disciplines: string[];
   years: number[];
   children?: React.ReactNode;
 };
 
-export default function BookFilters({ categories, years, children }: Props) {
+export default function BookFilters({ disciplines, years, children }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -157,14 +157,14 @@ export default function BookFilters({ categories, years, children }: Props) {
         </div>
         <div className="flex gap-2">
           <select
-            defaultValue={searchParams.get("category") ?? ""}
-            onChange={(e) => updateParam("category", e.target.value)}
+            defaultValue={searchParams.get("discipline") ?? ""}
+            onChange={(e) => updateParam("discipline", e.target.value)}
             className="flex-1 p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white"
           >
-            <option value="">すべてのカテゴリ</option>
-            {categories.map((c) => (
-              <option key={c} value={c}>
-                {c}
+            <option value="">すべての分野</option>
+            {disciplines.map((d) => (
+              <option key={d} value={d}>
+                {d}
               </option>
             ))}
           </select>
