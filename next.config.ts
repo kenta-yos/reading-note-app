@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["kuromoji", "pdf-parse"],
+  serverExternalPackages: ["kuromoji"],
 };
 
 export default nextConfig;

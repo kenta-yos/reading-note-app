@@ -7,7 +7,6 @@ import { Suspense } from "react";
 import { getAvailableYears } from "@/lib/stats";
 import { BOOK_STATUSES } from "@/lib/types";
 import { BookStatus as PrismaBookStatus } from "@prisma/client";
-import { redirect } from "next/navigation";
 
 const DEFAULT_PAGE_SIZE = 10;
 
@@ -85,10 +84,11 @@ export default async function BooksPage({
 }) {
   const params = await searchParams;
 
-  // デフォルトで「読みたい」タブを開く
-  if (!params.status && !params.q && !params.discipline && !params.year) {
-    redirect("/books?status=WANT_TO_READ");
-  }
+  // デフォルトで「読みたい」タブを表示
+  const effectiveParams = {
+    ...params,
+    status: params.status || (!params.q && !params.discipline && !params.year ? "WANT_TO_READ" : params.status),
+  };
 
   const [disciplines, availableYears] = await Promise.all([
     getDisciplines(),
@@ -118,7 +118,7 @@ export default async function BooksPage({
       <Suspense>
         <BookFilters disciplines={disciplines} years={years}>
           <Suspense fallback={<BookListSkeleton />}>
-            <BookListServer searchParams={params} />
+            <BookListServer searchParams={effectiveParams} />
           </Suspense>
         </BookFilters>
       </Suspense>
