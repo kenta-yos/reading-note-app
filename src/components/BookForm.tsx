@@ -30,7 +30,6 @@ type BookFormProps = {
     publishedYear?: number;
     isbn?: string;
     pages?: number;
-    category?: string;
     discipline?: string;
     rating?: number;
     description?: string;
@@ -46,14 +45,12 @@ export default function BookForm({ initialData = {}, mode = "create", returnStat
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [categories, setCategories] = useState<string[]>([]);
   const [title, setTitle] = useState(initialData.title ?? "");
   const [author, setAuthor] = useState(initialData.author ?? "");
   const [publisher, setPublisher] = useState(initialData.publisher ?? "");
   const [publishedYear, setPublishedYear] = useState(String(initialData.publishedYear ?? ""));
   const [isbn, setIsbn] = useState(initialData.isbn ?? "");
   const [pages, setPages] = useState(String(initialData.pages ?? ""));
-  const [category, setCategory] = useState(initialData.category ?? "");
   const [discipline, setDiscipline] = useState(initialData.discipline ?? "");
   const [description, setDescription] = useState(initialData.description ?? "");
 
@@ -66,12 +63,6 @@ export default function BookForm({ initialData = {}, mode = "create", returnStat
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showScanner, setShowScanner] = useState(false);
-
-  useEffect(() => {
-    fetch("/api/categories")
-      .then((r) => r.json())
-      .then((data) => setCategories(data.map((c: { name: string }) => c.name)));
-  }, []);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -218,7 +209,6 @@ export default function BookForm({ initialData = {}, mode = "create", returnStat
       publishedYear: publishedYear ? Number(publishedYear) : null,
       isbn: isbn || null,
       pages: pages ? Number(pages) : null,
-      category: category || null,
       discipline: discipline || null,
       rating: rating ? Number(rating) : null,
       description: description || null,
@@ -473,42 +463,22 @@ export default function BookForm({ initialData = {}, mode = "create", returnStat
         </select>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-slate-600 mb-1">
-            カテゴリ
-          </label>
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-          >
-            <option value="">選択なし</option>
-            {categories.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-slate-600 mb-1">
-            評価 (1–5)
-          </label>
-          <select
-            value={rating}
-            onChange={(e) => setRating(e.target.value)}
-            className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-          >
-            <option value="">なし</option>
-            {[1, 2, 3, 4, 5].map((n) => (
-              <option key={n} value={n}>
-                {"★".repeat(n)}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div>
+        <label className="block text-sm font-medium text-slate-600 mb-1">
+          評価 (1–5)
+        </label>
+        <select
+          value={rating}
+          onChange={(e) => setRating(e.target.value)}
+          className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+        >
+          <option value="">なし</option>
+          {[1, 2, 3, 4, 5].map((n) => (
+            <option key={n} value={n}>
+              {"★".repeat(n)}
+            </option>
+          ))}
+        </select>
       </div>
 
       {description && (
