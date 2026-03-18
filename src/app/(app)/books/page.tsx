@@ -106,20 +106,6 @@ export default async function BooksPage({
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <ActionLink
-            href="/books/next-read"
-            className="flex items-center justify-center w-10 h-10 rounded-lg border border-violet-200 bg-violet-50 text-lg hover:border-violet-300 hover:bg-violet-100 transition-colors shadow-sm"
-            spinnerClassName="w-4 h-4 text-violet-500"
-          >
-            ✨
-          </ActionLink>
-          <ActionLink
-            href="/memo"
-            className="flex items-center justify-center w-10 h-10 rounded-lg border border-slate-200 bg-white text-lg text-slate-600 hover:border-blue-300 hover:text-blue-600 transition-colors shadow-sm"
-            spinnerClassName="w-4 h-4 text-slate-500"
-          >
-            📝
-          </ActionLink>
-          <ActionLink
             href="/categories"
             className="flex items-center justify-center w-10 h-10 rounded-lg border border-slate-200 bg-white text-lg text-slate-600 hover:border-blue-300 hover:text-blue-600 transition-colors shadow-sm"
             spinnerClassName="w-4 h-4 text-slate-500"

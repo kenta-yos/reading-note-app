@@ -5,7 +5,6 @@ import ActionLink from "@/components/ActionLink";
 import BackButton from "@/components/BackButton";
 import StatusChanger from "@/components/StatusChanger";
 import { BookStatus } from "@/lib/types";
-import MemoSection from "@/components/MemoSection";
 import RefetchButton from "@/components/RefetchButton";
 
 export default async function BookDetailPage({
@@ -156,8 +155,6 @@ export default async function BookDetailPage({
         )}
       </div>
 
-      {/* 読書メモセクション（読中の本のみ） */}
-      {book.status === "READING" && <MemoSection bookId={id} />}
     </div>
   );
 }

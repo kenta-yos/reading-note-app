@@ -10,15 +10,11 @@ import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { BookStatus as PrismaBookStatus } from "@prisma/client";
-import Anthropic from "@anthropic-ai/sdk";
 import { searchNdlForCandidates } from "@/lib/ndl-search";
-import { getNextReadData, buildNextReadPrompt } from "@/lib/lab";
-import { safeJsonParse } from "@/lib/json-repair";
-import { isCreditOrRateLimitError, getAnthropicErrorMessage } from "@/lib/anthropic-error";
 
 export const maxDuration = 30;
 
-const RESERVED_SLUGS = new Set(["search", "next-read", "backfill-isbn", "refetch"]);
+const RESERVED_SLUGS = new Set(["search", "backfill-isbn", "refetch"]);
 
 type Params = { params: Promise<{ slug?: string[] }> };
 
@@ -74,7 +70,6 @@ export async function POST(req: Request, { params }: Params) {
   const { slug } = await params;
 
   if (!slug || slug.length === 0) return createBook(req);
-  if (slug[0] === "next-read") return nextRead(req);
   if (slug[0] === "backfill-isbn") return backfillIsbn();
   if (slug[0] === "refetch") return refetchBookInfo(req);
   return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -428,35 +423,6 @@ async function searchBooks(req: Request) {
   }
 
   return NextResponse.json({ candidates });
-}
-
-type NextReadItem = { bookId: string; title: string; reason: string };
-
-async function nextRead(req: Request) {
-  try {
-    const body = await req.json();
-    const userQuery = body.query?.trim();
-    if (!userQuery) return NextResponse.json({ error: "気分・興味を入力してください" }, { status: 400 });
-
-    const { candidateText, candidateCount, trendText, readCount } = await getNextReadData();
-    if (candidateCount === 0) return NextResponse.json({ error: "「読みたい」「積読」に登録された本がありません" }, { status: 400 });
-
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    const prompt = buildNextReadPrompt(userQuery, candidateText, candidateCount, trendText, readCount);
-    const message = await client.messages.create({ model: "claude-sonnet-4-20250514", max_tokens: 2048, messages: [{ role: "user", content: prompt }] });
-    const responseText = message.content[0].type === "text" ? message.content[0].text : "";
-
-    const items = safeJsonParse<NextReadItem[]>(responseText, /\[[\s\S]*\]/);
-    if (!items || items.length === 0) return NextResponse.json({ error: "推薦結果のパースに失敗しました" }, { status: 500 });
-
-    const validIds = new Set([...candidateText.matchAll(/\[([a-z0-9-]+)\]/g)].map((m) => m[1]));
-    const validated = items.filter((item) => validIds.has(item.bookId));
-    return NextResponse.json({ recommendations: validated });
-  } catch (error) {
-    console.error("[books/next-read] failed:", error);
-    if (isCreditOrRateLimitError(error)) return NextResponse.json({ error: getAnthropicErrorMessage(error), creditError: true }, { status: 503 });
-    return NextResponse.json({ error: error instanceof Error ? error.message : "不明なエラー" }, { status: 500 });
-  }
 }
 
 async function backfillIsbn() {

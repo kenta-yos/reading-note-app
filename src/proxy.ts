@@ -64,7 +64,6 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/analytics") ||
     pathname.startsWith("/discover") ||
     pathname.startsWith("/goals") ||
-    pathname.startsWith("/lab") ||
     pathname.startsWith("/api/");
 
   if (!needsAuth) {

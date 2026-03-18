@@ -4,13 +4,6 @@ import PublicHeader from "./components/PublicHeader";
 import StatCards from "./components/StatCards";
 import PublicPageClient from "./components/PublicPageClient";
 
-type Evolution = {
-  period: string;
-  theme: string;
-  description: string;
-  keyBooks: string[];
-};
-
 export const revalidate = 300;
 
 export default async function PublicPage() {
@@ -40,18 +33,6 @@ export default async function PublicPage() {
   const minYear = readDates[0] ?? new Date().getFullYear();
   const maxYear = readDates[readDates.length - 1] ?? new Date().getFullYear();
 
-  // Latest reading insight (evolution)
-  const latestInsight = await prisma.readingInsight.findFirst({
-    orderBy: { createdAt: "desc" },
-    select: { analysis: true },
-  });
-  const evolution: Evolution[] =
-    latestInsight?.analysis &&
-    typeof latestInsight.analysis === "object" &&
-    "evolution" in (latestInsight.analysis as Record<string, unknown>)
-      ? ((latestInsight.analysis as Record<string, unknown>).evolution as Evolution[])
-      : [];
-
   // Serializable book list for client
   const bookList = books.map((b) => ({
     title: b.title,
@@ -76,7 +57,6 @@ export default async function PublicPage() {
       </section>
 
       <PublicPageClient
-        evolution={evolution}
         graphData={graphData}
         bookList={bookList}
       />

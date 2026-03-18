@@ -5,7 +5,6 @@ import { getKeywordHeatmap } from "@/lib/keywords";
 import { getDisciplineTotals, getVocabHealth } from "@/lib/stats";
 import { prisma } from "@/lib/prisma";
 import { API_ERROR_SENTINEL } from "@/lib/keyword-extractor";
-import Link from "next/link";
 import ConceptForceGraph from "@/components/charts/ConceptForceGraph";
 import ConceptBumpChart from "@/components/charts/ConceptBumpChart";
 import DisciplineBarChart from "@/components/charts/DisciplineBarChart";
@@ -184,25 +183,6 @@ export default async function AnalyticsPage() {
         <DisciplineBarChart data={disciplineTotals} />
       </div>
 
-      {/* ── 読書ラボへのリンク ── */}
-      <Link
-        href="/lab"
-        className="block bg-gradient-to-r from-amber-50 to-cyan-50 border border-slate-200 rounded-xl p-5 shadow-sm mb-6 lg:mb-8 hover:shadow-md transition-shadow group"
-      >
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
-              読書ラボ
-            </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              AIが読書履歴を横断分析し、発見やおすすめの本・論文を提案する実験機能
-            </p>
-          </div>
-          <span className="text-slate-300 group-hover:text-slate-500 transition-colors text-lg">
-            →
-          </span>
-        </div>
-      </Link>
     </div>
   );
 }

@@ -32,25 +32,11 @@ model Book {
   statusChangedAt DateTime      @default(now())
   createdAt       DateTime      @default(now())
   keywords      BookKeyword[]
-  memos         ReadingMemo[]
 
   @@index([status])
   @@index([readAt])
   @@index([category])
   @@index([status, readAt])
-}
-
-model ReadingMemo {
-  id        String   @id @default(cuid())
-  bookId    String
-  content   String
-  quote     String?
-  page      Int?
-  createdAt DateTime @default(now())
-  book      Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
-
-  @@index([bookId])
-  @@index([createdAt])
 }
 
 model BookKeyword {
@@ -94,21 +80,6 @@ model DiscoverBookmark {
   discipline String?
   ndlUrl     String?
   createdAt  DateTime @default(now())
-}
-
-model ReadingInsight {
-  id        String   @id @default(cuid())
-  analysis  Json     // { discoveries: [...], evolution: [...] }
-  bookCount Int
-  createdAt DateTime @default(now())
-}
-
-model RecommendSession {
-  id              String   @id @default(cuid())
-  recommendations Json     // Recommendation[]
-  searchType      String   @default("auto")
-  userQuery       String?
-  createdAt       DateTime @default(now())
 }
 
 model DiscoveredBook {
