@@ -48,6 +48,7 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/public") ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/api/auth/login") ||
+    pathname === "/api/health" ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon") ||
     pathname === "/favicon.ico" ||
