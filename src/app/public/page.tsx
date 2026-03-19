@@ -66,20 +66,10 @@ export default async function PublicPage() {
         bookList={bookList}
       />
 
-      {/* Footer CTA */}
       <footer className="text-center py-12 border-t border-slate-200 mt-12">
-        <p className="text-sm text-slate-500 mb-4">
+        <p className="text-sm text-slate-500">
           読書記録は ScholarGraph で管理しています
         </p>
-        <a
-          href="https://my-reading-assistant.vercel.app"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-white text-sm font-medium transition-all hover:opacity-85 shadow-md"
-          style={{ backgroundColor: "#1a5276" }}
-        >
-          Lukaで読書準備する
-        </a>
       </footer>
     </div>
   );

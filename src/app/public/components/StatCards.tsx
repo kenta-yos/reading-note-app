@@ -54,26 +54,26 @@ export default function StatCards({
   return (
     <div
       ref={books.ref}
-      className="flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-slate-500 text-sm"
+      className="grid grid-cols-3 gap-4 max-w-lg mx-auto"
     >
-      <span>
-        {minYear} 〜 {maxYear}年
-      </span>
-      <span className="text-slate-300 hidden sm:inline">|</span>
-      <span ref={pages.ref}>
-        <span className="font-semibold text-slate-700 tabular-nums">
+      <div className="text-center">
+        <p className="text-2xl lg:text-3xl font-bold text-slate-800 tabular-nums">
+          {minYear}–{maxYear}
+        </p>
+        <p className="text-xs text-slate-500 mt-1">年</p>
+      </div>
+      <div className="text-center border-x border-slate-200" ref={pages.ref}>
+        <p className="text-2xl lg:text-3xl font-bold text-slate-800 tabular-nums">
           {books.value.toLocaleString()}
-        </span>{" "}
-        冊
-      </span>
-      <span className="text-slate-300 hidden sm:inline">|</span>
-      <span>
-        約{" "}
-        <span className="font-semibold text-slate-700 tabular-nums">
+        </p>
+        <p className="text-xs text-slate-500 mt-1">冊</p>
+      </div>
+      <div className="text-center">
+        <p className="text-2xl lg:text-3xl font-bold text-slate-800 tabular-nums">
           {pages.value.toLocaleString()}
-        </span>{" "}
-        ページ
-      </span>
+        </p>
+        <p className="text-xs text-slate-500 mt-1">ページ</p>
+      </div>
     </div>
   );
 }
