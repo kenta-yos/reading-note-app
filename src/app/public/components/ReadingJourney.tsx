@@ -59,9 +59,7 @@ function JourneyCard({
           rounded-xl border transition-all duration-300 cursor-pointer p-4 lg:p-5
           ${isRoot
             ? "bg-[#1a5276] text-white border-[#1a5276] shadow-md"
-            : node.ongoing
-              ? "bg-white border-slate-200 border-l-[3px] border-l-[#1a5276] shadow-sm hover:shadow-md"
-              : "bg-white border-slate-200 border-l-[3px] border-l-slate-300 shadow-sm hover:shadow-md"
+            : "bg-white border-slate-200 border-l-[3px] border-l-[#1a5276] shadow-sm hover:shadow-md"
           }
         `}
         onClick={() => setExpandedId(isExpanded ? null : node.id)}
@@ -70,12 +68,6 @@ function JourneyCard({
         <div className="flex items-start gap-2">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              {node.ongoing && !isRoot && (
-                <span className="relative flex h-2 w-2 shrink-0">
-                  <span className="absolute inline-flex h-full w-full rounded-full bg-[#1a5276] opacity-40 animate-ping" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#1a5276]" />
-                </span>
-              )}
               <h3 className={`text-sm lg:text-base font-bold ${isRoot ? "text-white" : "text-slate-800"}`}>
                 {mainTitle}
               </h3>
