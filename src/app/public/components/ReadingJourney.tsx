@@ -56,12 +56,12 @@ function JourneyCard({
       {/* The card itself */}
       <div
         className={`
-          rounded-xl border transition-all duration-300 cursor-pointer
+          rounded-xl border transition-all duration-300 cursor-pointer p-4 lg:p-5
           ${isRoot
-            ? "bg-[#1a5276] text-white border-[#1a5276] shadow-md p-5 lg:p-6"
+            ? "bg-[#1a5276] text-white border-[#1a5276] shadow-md"
             : node.ongoing
-              ? "bg-white border-slate-200 border-l-[3px] border-l-[#1a5276] shadow-sm hover:shadow-md p-4 lg:p-5"
-              : "bg-white border-slate-200 border-l-[3px] border-l-slate-300 shadow-sm hover:shadow-md p-4 lg:p-5"
+              ? "bg-white border-slate-200 border-l-[3px] border-l-[#1a5276] shadow-sm hover:shadow-md"
+              : "bg-white border-slate-200 border-l-[3px] border-l-slate-300 shadow-sm hover:shadow-md"
           }
         `}
         onClick={() => setExpandedId(isExpanded ? null : node.id)}
