@@ -19,7 +19,7 @@ export default function PublicHeader({ totalBooks, totalPages, minYear }: Props)
         }}
       />
 
-      <div className="relative max-w-3xl mx-auto text-center pt-16 lg:pt-24 pb-12 lg:pb-16 px-4">
+      <div className="relative max-w-3xl mx-auto text-center pt-16 lg:pt-24 pb-4 lg:pb-6 px-4">
         <Image
           src="/kendog.png"
           alt="Ken"

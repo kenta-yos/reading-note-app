@@ -48,7 +48,7 @@ export default async function PublicPage() {
       />
 
       {/* Reading Journey */}
-      <section className="py-16 lg:py-20">
+      <section className="pt-10 lg:pt-12 pb-16 lg:pb-20">
         <div className="max-w-4xl mx-auto px-4">
           <ReadingJourney />
         </div>
