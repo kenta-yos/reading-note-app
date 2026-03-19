@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getConceptGraph } from "@/lib/concepts";
 import PublicHeader from "./components/PublicHeader";
 import StatCards from "./components/StatCards";
+import ReadingJourney from "./components/ReadingJourney";
 import PublicPageClient from "./components/PublicPageClient";
 
 export const revalidate = 300;
@@ -55,6 +56,8 @@ export default async function PublicPage() {
           totalPages={totalPages}
         />
       </section>
+
+      <ReadingJourney />
 
       <PublicPageClient
         graphData={graphData}
