@@ -84,14 +84,16 @@ export default function BookList({ books }: Props) {
     sortKey === key ? (sortAsc ? " ↑" : " ↓") : "";
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-      <h2 className="text-sm font-semibold text-slate-700 mb-1">
+    <div>
+      <h2 className="text-xl lg:text-2xl font-bold text-slate-800 text-center mb-2">
         読了書籍リスト
       </h2>
-      <p className="text-xs text-slate-400 mb-4">
+      <p className="text-sm text-slate-500 text-center mb-8">
         全{books.length}冊
         {filtered.length !== books.length && `（絞り込み：${filtered.length}冊）`}
       </p>
+
+      <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-2 mb-4">
@@ -237,6 +239,7 @@ export default function BookList({ books }: Props) {
           </button>
         </div>
       )}
+      </div>
     </div>
   );
 }

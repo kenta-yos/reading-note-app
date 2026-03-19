@@ -288,13 +288,15 @@ export default function ConceptNetwork({
   }
 
   return (
-    <div className="relative w-full bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-      <h2 className="text-sm font-semibold text-slate-700 mb-1">
+    <div>
+      <h2 className="text-xl lg:text-2xl font-bold text-slate-800 text-center mb-2">
         知識の地形図
       </h2>
-      <p className="text-xs text-slate-400 mb-3">
+      <p className="text-sm text-slate-500 text-center mb-8">
         円サイズ＝蓄積量、線＝同じ本で共起した関係、色＝ピーク年（青い＝古くから、橙い＝最近）
       </p>
+
+      <div className="relative w-full bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
 
       <div className="flex items-center gap-2 mb-3 text-xs text-slate-500">
         <span>古い</span>
@@ -434,6 +436,7 @@ export default function ConceptNetwork({
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }

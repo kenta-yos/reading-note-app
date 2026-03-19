@@ -48,7 +48,7 @@ export default async function PublicPage() {
     <div className="max-w-5xl mx-auto px-4 pb-16">
       <PublicHeader />
 
-      <section className="mb-12">
+      <section className="mb-16">
         <StatCards
           totalBooks={totalBooks}
           minYear={minYear}
@@ -57,7 +57,9 @@ export default async function PublicPage() {
         />
       </section>
 
-      <ReadingJourney />
+      <section className="mb-16">
+        <ReadingJourney />
+      </section>
 
       <PublicPageClient
         graphData={graphData}

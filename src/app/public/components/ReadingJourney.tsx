@@ -203,7 +203,7 @@ export default function ReadingJourney() {
   if (!tree) return null;
 
   return (
-    <section className="mb-16">
+    <div>
       <h2 className="text-xl lg:text-2xl font-bold text-slate-800 text-center mb-2">
         読書遍歴
       </h2>
@@ -223,6 +223,6 @@ export default function ReadingJourney() {
       <p className="text-[11px] text-slate-400 text-center mt-8">
         ※ この読書遍歴は、読書記録データをもとに生成AIが作成したものです
       </p>
-    </section>
+    </div>
   );
 }
