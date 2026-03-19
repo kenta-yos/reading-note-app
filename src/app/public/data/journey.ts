@@ -184,17 +184,4 @@ export const journeyEntries: JourneyEntry[] = [
     parentId: "welfare-politics",
     ongoing: false,
   },
-  {
-    id: "tech",
-    title: "プログラミング ── 新しい道具を手に入れる",
-    period: "2023",
-    description:
-      "コンピュータの仕組みを基礎から学び、プログラミングの原則を知った。この読書記録アプリは、読書を通じてテクノロジーへの関心が芽生えた結果でもある。",
-    books: [
-      { title: "プリンシプル オブ プログラミング", author: "上田勲" },
-      { title: "コンピュータ、どうやってつくったんですか？", author: "川添愛" },
-    ],
-    parentId: "education-sociology",
-    ongoing: false,
-  },
 ];
