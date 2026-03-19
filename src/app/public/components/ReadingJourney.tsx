@@ -85,14 +85,14 @@ function JourneyCard({
                     ? "bg-white/20 text-white/90"
                     : node.ongoing
                       ? "bg-[#1a527612] text-[#1a5276]"
-                      : "bg-slate-100 text-slate-400"
+                      : "bg-slate-100 text-slate-500"
                 }`}
               >
                 {node.period}
               </span>
             </div>
             {subtitle && (
-              <p className={`text-xs mt-0.5 ${isRoot ? "text-white/70" : "text-slate-400"}`}>
+              <p className={`text-xs mt-0.5 ${isRoot ? "text-white/80" : "text-slate-500"}`}>
                 {subtitle}
               </p>
             )}
@@ -117,7 +117,7 @@ function JourneyCard({
             isExpanded ? "max-h-[600px] opacity-100 mt-3" : "max-h-0 opacity-0"
           }`}
         >
-          <p className={`text-sm leading-relaxed mb-3 ${isRoot ? "text-white/85" : "text-slate-600"}`}>
+          <p className={`text-sm leading-relaxed mb-3 ${isRoot ? "text-white/90" : "text-slate-700"}`}>
             {node.description}
           </p>
           <div className="flex flex-wrap gap-1.5">
@@ -125,7 +125,7 @@ function JourneyCard({
               <span
                 key={book.title}
                 className={`inline-flex items-center text-[11px] rounded-md px-2 py-0.5 ${
-                  isRoot ? "bg-white/15 text-white/90" : "bg-slate-50 text-slate-500"
+                  isRoot ? "bg-white/15 text-white/90" : "bg-slate-100 text-slate-600"
                 }`}
               >
                 <span className={`font-medium ${isRoot ? "text-white" : "text-slate-700"}`}>
@@ -207,7 +207,7 @@ export default function ReadingJourney() {
       <h2 className="text-xl lg:text-2xl font-bold text-slate-800 text-center mb-2">
         読書遍歴
       </h2>
-      <p className="text-sm text-slate-400 text-center mb-10">
+      <p className="text-sm text-slate-500 text-center mb-10">
         芋づる式に広がってきた関心の軌跡
       </p>
 
