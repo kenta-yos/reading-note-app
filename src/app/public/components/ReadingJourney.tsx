@@ -79,17 +79,6 @@ function JourneyCard({
               <h3 className={`text-sm lg:text-base font-bold ${isRoot ? "text-white" : "text-slate-800"}`}>
                 {mainTitle}
               </h3>
-              <span
-                className={`text-[11px] font-medium px-2 py-0.5 rounded-full shrink-0 ${
-                  isRoot
-                    ? "bg-white/20 text-white/90"
-                    : node.ongoing
-                      ? "bg-[#1a527612] text-[#1a5276]"
-                      : "bg-slate-100 text-slate-500"
-                }`}
-              >
-                {node.period}
-              </span>
             </div>
             {subtitle && (
               <p className={`text-xs mt-0.5 ${isRoot ? "text-white/80" : "text-slate-500"}`}>
