@@ -4,9 +4,8 @@ import { useEffect, useRef, useState } from "react";
 
 type StatCardsProps = {
   totalBooks: number;
-  minYear: number;
-  maxYear: number;
   totalPages: number;
+  minYear: number;
 };
 
 function useCountUp(target: number, duration = 1500) {
@@ -44,9 +43,8 @@ function useCountUp(target: number, duration = 1500) {
 
 export default function StatCards({
   totalBooks,
-  minYear,
-  maxYear,
   totalPages,
+  minYear,
 }: StatCardsProps) {
   const books = useCountUp(totalBooks);
   const pages = useCountUp(totalPages, 2000);
@@ -54,25 +52,33 @@ export default function StatCards({
   return (
     <div
       ref={books.ref}
-      className="grid grid-cols-3 gap-4 max-w-lg mx-auto"
+      className="flex items-center justify-center gap-8 lg:gap-12"
     >
       <div className="text-center">
-        <p className="text-2xl lg:text-3xl font-bold text-slate-800 tabular-nums">
-          {minYear}–{maxYear}
+        <p className="text-3xl lg:text-4xl font-extrabold text-slate-900 tabular-nums tracking-tight">
+          {minYear}
         </p>
-        <p className="text-xs text-slate-500 mt-1">年</p>
+        <p className="text-xs lg:text-sm text-slate-400 mt-1 font-medium uppercase tracking-widest">
+          年から
+        </p>
       </div>
-      <div className="text-center border-x border-slate-200" ref={pages.ref}>
-        <p className="text-2xl lg:text-3xl font-bold text-slate-800 tabular-nums">
+      <div className="w-px h-10 bg-slate-200" />
+      <div className="text-center" ref={pages.ref}>
+        <p className="text-3xl lg:text-4xl font-extrabold text-slate-900 tabular-nums tracking-tight">
           {books.value.toLocaleString()}
         </p>
-        <p className="text-xs text-slate-500 mt-1">冊</p>
+        <p className="text-xs lg:text-sm text-slate-400 mt-1 font-medium uppercase tracking-widest">
+          冊
+        </p>
       </div>
+      <div className="w-px h-10 bg-slate-200" />
       <div className="text-center">
-        <p className="text-2xl lg:text-3xl font-bold text-slate-800 tabular-nums">
+        <p className="text-3xl lg:text-4xl font-extrabold text-slate-900 tabular-nums tracking-tight">
           {pages.value.toLocaleString()}
         </p>
-        <p className="text-xs text-slate-500 mt-1">ページ</p>
+        <p className="text-xs lg:text-sm text-slate-400 mt-1 font-medium uppercase tracking-widest">
+          ページ
+        </p>
       </div>
     </div>
   );

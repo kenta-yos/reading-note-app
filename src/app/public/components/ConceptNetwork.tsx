@@ -289,10 +289,10 @@ export default function ConceptNetwork({
 
   return (
     <div>
-      <h2 className="text-xl lg:text-2xl font-bold text-slate-800 text-center mb-2">
+      <h2 className="text-2xl lg:text-3xl font-extrabold text-slate-900 text-center mb-3 tracking-tight">
         知識の地形図
       </h2>
-      <p className="text-sm text-slate-500 text-center mb-8">
+      <p className="text-sm lg:text-base text-slate-500 text-center mb-10">
         円サイズ＝蓄積量、線＝同じ本で共起した関係、色＝ピーク年（青い＝古くから、橙い＝最近）
       </p>
 

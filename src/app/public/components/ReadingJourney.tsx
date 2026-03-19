@@ -204,10 +204,10 @@ export default function ReadingJourney() {
 
   return (
     <div>
-      <h2 className="text-xl lg:text-2xl font-bold text-slate-800 text-center mb-2">
+      <h2 className="text-2xl lg:text-3xl font-extrabold text-slate-900 text-center mb-3 tracking-tight">
         読書遍歴
       </h2>
-      <p className="text-sm text-slate-500 text-center mb-10">
+      <p className="text-sm lg:text-base text-slate-500 text-center mb-12">
         芋づる式に広がってきた関心の軌跡
       </p>
 

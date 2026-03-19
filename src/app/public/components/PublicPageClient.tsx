@@ -25,14 +25,14 @@ export default function PublicPageClient({
   return (
     <>
       {/* Concept Network */}
-      <section className="mb-16">
+      <div className="mb-20">
         <ConceptNetwork data={graphData} />
-      </section>
+      </div>
 
       {/* Book List */}
-      <section className="mb-16" id="book-list">
+      <div id="book-list">
         <BookList books={bookList} />
-      </section>
+      </div>
     </>
   );
 }
