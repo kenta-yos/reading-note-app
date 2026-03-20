@@ -30,12 +30,9 @@ export default function About() {
   return (
     <section className="max-w-2xl mx-auto px-4 py-14 lg:py-16">
       {/* Who I am */}
-      <p className="text-base lg:text-lg text-slate-700 leading-relaxed">
-        文系大学院を出て、いまは会社員をしています。
-        新卒の就職活動に強い違和感を覚えたことをきっかけに本を読み始め、
-        そこから「社会はなぜこうなっているのか」を知るための読書を続けてきました。
-      </p>
-      <p className="text-base lg:text-lg text-slate-700 leading-relaxed mt-4 mb-12">
+      <p className="text-base lg:text-lg text-slate-700 leading-relaxed mb-12">
+        文系大学院卒のサラリーマンです。
+        社会人になってから「学術書」の読書をスタートさせ、日々の生活のなかで感じた疑問やもやもやを考えるためのヒントをたくさんもらってきました。
         これまで読んできた本の記録と、関心がどう広がってきたかをこのページにまとめています。
       </p>
 
