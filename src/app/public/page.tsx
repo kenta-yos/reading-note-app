@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getConceptGraph } from "@/lib/concepts";
 import PublicHeader from "./components/PublicHeader";
 import About from "./components/About";
+import SectionHeading from "./components/SectionHeading";
 import ReadingJourney from "./components/ReadingJourney";
 import PublicPageClient from "./components/PublicPageClient";
 
@@ -49,17 +50,22 @@ export default async function PublicPage() {
       />
 
       {/* About */}
-      <About />
+      <section className="py-14 lg:py-16">
+        <div className="max-w-2xl mx-auto px-4">
+          <SectionHeading title="About" />
+          <About />
+        </div>
+      </section>
 
       {/* Reading Journey */}
-      <section className="pt-10 lg:pt-12 pb-16 lg:pb-20">
+      <section className="py-14 lg:py-16" style={{ backgroundColor: "rgba(26,82,118,0.02)" }}>
         <div className="max-w-4xl mx-auto px-4">
           <ReadingJourney />
         </div>
       </section>
 
-      {/* Concept Network */}
-      <section className="py-16 lg:py-20" style={{ backgroundColor: "rgba(26,82,118,0.03)" }}>
+      {/* Concept Network + Book List */}
+      <section className="py-14 lg:py-16">
         <div className="max-w-5xl mx-auto px-4">
           <PublicPageClient graphData={graphData} bookList={bookList} />
         </div>

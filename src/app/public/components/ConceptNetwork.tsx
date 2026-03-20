@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ConceptGraphData } from "@/lib/concepts";
+import SectionHeading from "./SectionHeading";
 
 type PositionedNode = {
   concept: string;
@@ -289,12 +290,10 @@ export default function ConceptNetwork({
 
   return (
     <div>
-      <h2 className="text-2xl lg:text-3xl font-extrabold text-slate-900 text-center mb-3 tracking-tight">
-        知識の地形図
-      </h2>
-      <p className="text-sm lg:text-base text-slate-500 text-center mb-10">
-        円サイズ＝蓄積量、線＝同じ本で共起した関係、色＝ピーク年（青い＝古くから、橙い＝最近）
-      </p>
+      <SectionHeading
+        title="知識の地形図"
+        subtitle="円サイズ＝蓄積量、線＝同じ本で共起した関係、色＝ピーク年（青い＝古くから、橙い＝最近）"
+      />
 
       <div className="relative w-full bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { journeyEntries, type JourneyEntry } from "../data/journey";
+import SectionHeading from "./SectionHeading";
 
 /* ─── tree helpers ─── */
 type TreeNode = JourneyEntry & { children: TreeNode[] };
@@ -185,12 +186,7 @@ export default function ReadingJourney() {
 
   return (
     <div>
-      <h2 className="text-2xl lg:text-3xl font-extrabold text-slate-900 text-center mb-3 tracking-tight">
-        読書遍歴
-      </h2>
-      <p className="text-sm lg:text-base text-slate-500 text-center mb-12">
-        芋づる式に広がってきた関心の軌跡
-      </p>
+      <SectionHeading title="読書遍歴" subtitle="芋づる式に広がってきた関心の軌跡" />
 
       <JourneyCard
         node={tree}

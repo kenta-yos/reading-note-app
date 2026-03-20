@@ -28,53 +28,49 @@ const activities = [
 
 export default function About() {
   return (
-    <section className="max-w-2xl mx-auto px-4 py-14 lg:py-16 space-y-14">
-      {/* Who I am */}
-      <div>
-        <h2 className="text-2xl lg:text-3xl font-extrabold text-slate-900 tracking-tight mb-6">
-          自己紹介
-        </h2>
-        <div className="text-base lg:text-lg text-slate-700 leading-[1.9] space-y-4">
-          <p>文系大学院卒のサラリーマンです。</p>
-          <p>
-            社会人になってから「学術書」の読書をスタートさせ、
-            日々の生活のなかで感じた疑問やもやもやを考えるためのヒントをたくさんもらってきました。
-          </p>
-          <p>
-            これまで読んできた本の記録と、関心がどう広がってきたかをこのページにまとめています。
-          </p>
-        </div>
+    <div>
+      {/* Self-intro text */}
+      <div className="text-center text-base lg:text-lg text-slate-700 leading-[1.9] space-y-4 mb-12">
+        <p>文系大学院卒のサラリーマンです。</p>
+        <p>
+          社会人になってから「学術書」の読書をスタートさせ、
+          <br className="hidden sm:inline" />
+          日々の生活のなかで感じた疑問やもやもやを考えるためのヒントをたくさんもらってきました。
+        </p>
+        <p>
+          これまで読んできた本の記録と、関心がどう広がってきたかをこのページにまとめています。
+        </p>
       </div>
 
-      {/* What I do */}
-      <div>
-        <h2 className="text-2xl lg:text-3xl font-extrabold text-slate-900 tracking-tight mb-6">
-          やっていること
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {activities.map((a) => (
-            <div
-              key={a.label}
-              className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
-            >
-              <div className="flex items-center gap-2 mb-1.5">
-                <span className="text-lg leading-none">{a.emoji}</span>
-                <span className="text-sm font-bold text-slate-800">
-                  {a.label}
+      {/* Activities label */}
+      <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] text-center mb-5">
+        やっていること
+      </p>
+
+      {/* Activity cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {activities.map((a) => (
+          <div
+            key={a.label}
+            className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+          >
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-lg leading-none">{a.emoji}</span>
+              <span className="text-sm font-bold text-slate-800">
+                {a.label}
+              </span>
+              {a.note && (
+                <span className="ml-auto text-[11px] font-medium text-[#1a5276] bg-[#1a527610] px-2 py-0.5 rounded-full">
+                  {a.note}
                 </span>
-                {a.note && (
-                  <span className="ml-auto text-[11px] font-medium text-[#1a5276] bg-[#1a527610] px-2 py-0.5 rounded-full">
-                    {a.note}
-                  </span>
-                )}
-              </div>
-              <p className="text-sm text-slate-600 leading-relaxed">
-                {a.description}
-              </p>
+              )}
             </div>
-          ))}
-        </div>
+            <p className="text-sm text-slate-600 leading-relaxed">
+              {a.description}
+            </p>
+          </div>
+        ))}
       </div>
-    </section>
+    </div>
   );
 }

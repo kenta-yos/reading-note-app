@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import SectionHeading from "./SectionHeading";
 
 type PublicBook = {
   title: string;
@@ -85,13 +86,10 @@ export default function BookList({ books }: Props) {
 
   return (
     <div>
-      <h2 className="text-2xl lg:text-3xl font-extrabold text-slate-900 text-center mb-3 tracking-tight">
-        読了書籍リスト
-      </h2>
-      <p className="text-sm lg:text-base text-slate-500 text-center mb-10">
-        全{books.length}冊
-        {filtered.length !== books.length && `（絞り込み：${filtered.length}冊）`}
-      </p>
+      <SectionHeading
+        title="読了書籍リスト"
+        subtitle={`全${books.length}冊${filtered.length !== books.length ? `（絞り込み：${filtered.length}冊）` : ""}`}
+      />
 
       <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
 
