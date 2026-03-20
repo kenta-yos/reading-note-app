@@ -33,7 +33,7 @@ export default function PublicHeader({ totalBooks, totalPages, minYear }: Props)
           Ken
         </h1>
         <p className="text-lg lg:text-xl text-slate-500 mb-12 font-light">
-          芋づる式読書の記録
+          学術と日常をつなぐ
         </p>
 
         <StatCards
