@@ -6,11 +6,11 @@ const GA_ID = "G-4NRCM174FM";
 export const metadata: Metadata = {
   title: "Ken | 学術と日常をつなぐ",
   description:
-    "10年間の読書遍歴。教育社会学→フェミニズム→障害学→法哲学。全読了書籍リストと知識の地図を公開しています。",
+    "学術書の読書を通じて、社会について考え続けている会社員の読書記録です。",
   openGraph: {
     title: "Ken | 学術と日常をつなぐ",
     description:
-      "10年間の読書遍歴。教育社会学→フェミニズム→障害学→法哲学。全読了書籍リストと知識の地図を公開しています。",
+      "学術書の読書を通じて、社会について考え続けている会社員の読書記録です。",
     url: "https://reading-note-app.vercel.app/public",
     type: "website",
   },
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Ken | 学術と日常をつなぐ",
     description:
-      "10年間の読書遍歴。教育社会学→フェミニズム→障害学→法哲学。全読了書籍リストと知識の地図を公開しています。",
+      "学術書の読書を通じて、社会について考え続けている会社員の読書記録です。",
   },
 };
 
