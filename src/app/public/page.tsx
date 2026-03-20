@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getConceptGraph } from "@/lib/concepts";
 import PublicHeader from "./components/PublicHeader";
+import About from "./components/About";
 import ReadingJourney from "./components/ReadingJourney";
 import PublicPageClient from "./components/PublicPageClient";
 
@@ -46,6 +47,9 @@ export default async function PublicPage() {
         totalPages={totalPages}
         minYear={minYear}
       />
+
+      {/* About */}
+      <About />
 
       {/* Reading Journey */}
       <section className="pt-10 lg:pt-12 pb-16 lg:pb-20">
