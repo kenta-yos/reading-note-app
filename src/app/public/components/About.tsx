@@ -77,6 +77,12 @@ export default function About() {
               <p className="text-sm text-slate-600 leading-relaxed">
                 {a.description}
               </p>
+              {a.link && (
+                <p className="text-xs text-[#1a5276] font-medium mt-2 flex items-center gap-1">
+                  アプリを見る
+                  <span aria-hidden="true" className="text-[10px]">↗</span>
+                </p>
+              )}
             </Wrapper>
           );
         })}
