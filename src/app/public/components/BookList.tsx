@@ -87,7 +87,7 @@ export default function BookList({ books }: Props) {
   return (
     <div>
       <SectionHeading
-        title="読了書籍リスト"
+        title="読了本リスト"
         subtitle={`全${books.length}冊${filtered.length !== books.length ? `（絞り込み：${filtered.length}冊）` : ""}`}
       />
 

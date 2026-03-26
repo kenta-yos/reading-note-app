@@ -19,22 +19,26 @@ export default function PublicHeader({ totalBooks, totalPages, minYear }: Props)
         }}
       />
 
-      <div className="relative max-w-3xl mx-auto text-center pt-16 lg:pt-24 pb-4 lg:pb-6 px-4">
-        <Image
-          src="/kendog.png"
-          alt="Ken"
-          width={112}
-          height={112}
-          className="w-24 h-24 lg:w-28 lg:h-28 rounded-full mx-auto mb-6 shadow-xl object-cover ring-4 ring-white"
-          priority
-        />
-
-        <h1 className="text-3xl lg:text-5xl font-extrabold text-slate-900 mb-3 tracking-tight">
-          Ken
-        </h1>
-        <p className="text-lg lg:text-xl text-slate-500 mb-12 font-light">
-          学術と日常をつなぐ
-        </p>
+      <div className="relative max-w-3xl mx-auto pt-8 lg:pt-10 pb-2 lg:pb-3 px-4">
+        {/* Avatar + Name + Subtitle row */}
+        <div className="flex items-center justify-center gap-4 mb-4">
+          <Image
+            src="/kendog.png"
+            alt="Kenta"
+            width={80}
+            height={80}
+            className="w-16 h-16 lg:w-20 lg:h-20 rounded-full shadow-lg object-cover ring-[3px] ring-white flex-shrink-0"
+            priority
+          />
+          <div>
+            <h1 className="text-2xl lg:text-3xl font-extrabold text-slate-900 tracking-tight">
+              Kenta
+            </h1>
+            <p className="text-sm lg:text-base text-slate-500 font-light">
+              学術と日常をつなぐ
+            </p>
+          </div>
+        </div>
 
         <StatCards
           totalBooks={totalBooks}

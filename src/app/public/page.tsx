@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { getConceptGraph } from "@/lib/concepts";
 import PublicHeader from "./components/PublicHeader";
+import SectionNav from "./components/SectionNav";
 import About from "./components/About";
+import Activities from "./components/Activities";
 import SectionHeading from "./components/SectionHeading";
 import ReadingJourney from "./components/ReadingJourney";
 import PublicPageClient from "./components/PublicPageClient";
@@ -49,23 +51,33 @@ export default async function PublicPage() {
         minYear={minYear}
       />
 
+      <SectionNav />
+
       {/* About */}
-      <section className="py-14 lg:py-16">
+      <section id="about" className="pt-4 pb-8 lg:pt-5 lg:pb-10">
         <div className="max-w-2xl mx-auto px-4">
           <SectionHeading title="About" />
           <About />
         </div>
       </section>
 
+      {/* Activities */}
+      <section id="activities" className="py-14 lg:py-16" style={{ backgroundColor: "rgba(26,82,118,0.02)" }}>
+        <div className="max-w-2xl mx-auto px-4">
+          <SectionHeading title="やっていること" />
+          <Activities />
+        </div>
+      </section>
+
       {/* Reading Journey */}
-      <section className="py-14 lg:py-16" style={{ backgroundColor: "rgba(26,82,118,0.02)" }}>
+      <section id="journey" className="py-14 lg:py-16">
         <div className="max-w-4xl mx-auto px-4">
           <ReadingJourney />
         </div>
       </section>
 
       {/* Concept Network + Book List */}
-      <section className="py-14 lg:py-16">
+      <section id="concepts" className="py-14 lg:py-16" style={{ backgroundColor: "rgba(26,82,118,0.02)" }}>
         <div className="max-w-5xl mx-auto px-4">
           <PublicPageClient graphData={graphData} bookList={bookList} />
         </div>

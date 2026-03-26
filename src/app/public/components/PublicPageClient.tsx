@@ -30,7 +30,7 @@ export default function PublicPageClient({
       </div>
 
       {/* Book List */}
-      <div id="book-list">
+      <div id="booklist">
         <BookList books={bookList} />
       </div>
     </>
