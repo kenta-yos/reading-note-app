@@ -4,9 +4,9 @@ import { useEffect, useState, useRef } from "react";
 
 const sections = [
   { id: "about", label: "About" },
-  { id: "activities", label: "やっていること" },
+  { id: "activities", label: "活動" },
   { id: "journey", label: "読書遍歴" },
-  { id: "concepts", label: "知識の地形図" },
+  { id: "concepts", label: "知識マップ" },
   { id: "booklist", label: "読了本" },
 ];
 
