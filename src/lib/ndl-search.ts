@@ -116,18 +116,38 @@ export type NdlSearchCandidate = {
   isbn: string | null;
 };
 
+/** フィールド指定検索パラメータ */
+export type NdlFieldQuery = {
+  title?: string;
+  author?: string;
+  publisher?: string;
+  isbn?: string;
+};
+
 /**
  * NDL SRU で書籍検索し、route の Candidate 形式で返す。
  * Google Books 並列検索ソースとして使用。
  * 失敗時は空配列を返す（呼び出し元で握りつぶす前提）。
  */
 export async function searchNdlForCandidates(
-  query: string,
-  mode: "keyword" | "isbn" = "keyword"
+  query: string | NdlFieldQuery,
+  mode: "keyword" | "isbn" | "fields" = "keyword"
 ): Promise<NdlSearchCandidate[]> {
   try {
-    const cql =
-      mode === "isbn" ? `isbn="${query}"` : `anywhere="${query}"`;
+    let cql: string;
+    if (mode === "fields" && typeof query === "object") {
+      const parts: string[] = [];
+      if (query.title) parts.push(`title="${query.title}"`);
+      if (query.author) parts.push(`creator="${query.author}"`);
+      if (query.publisher) parts.push(`publisher="${query.publisher}"`);
+      if (query.isbn) parts.push(`isbn="${query.isbn}"`);
+      if (parts.length === 0) return [];
+      cql = parts.join(" AND ");
+    } else if (mode === "isbn") {
+      cql = `isbn="${query}"`;
+    } else {
+      cql = `anywhere="${query}"`;
+    }
     const url =
       `https://ndlsearch.ndl.go.jp/api/sru` +
       `?operation=searchRetrieve` +

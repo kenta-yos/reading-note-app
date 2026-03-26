@@ -10,7 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { BookStatus as PrismaBookStatus } from "@prisma/client";
-import { searchNdlForCandidates } from "@/lib/ndl-search";
+import { searchNdlForCandidates, NdlFieldQuery } from "@/lib/ndl-search";
 
 export const maxDuration = 30;
 
@@ -53,6 +53,18 @@ function isCandidateJapanese(c: Candidate): boolean {
 }
 function normalizeTitle(t: string): string {
   return t.replace(/[\s　・:：=＝\-－—–]/g, "").replace(/[（(].*?[)）]/g, "").replace(/[第新改訂増補版]+版$/g, "").toLowerCase();
+}
+function isbn10to13(isbn10: string): string {
+  const base = "978" + isbn10.slice(0, 9);
+  let sum = 0;
+  for (let i = 0; i < 12; i++) sum += parseInt(base[i]) * (i % 2 === 0 ? 1 : 3);
+  const check = (10 - (sum % 10)) % 10;
+  return base + check;
+}
+function normalizeIsbn(isbn: string): string {
+  const digits = isbn.replace(/[- ]/g, "");
+  if (digits.length === 10) return isbn10to13(digits);
+  return digits;
 }
 
 // ── GET ──
@@ -294,17 +306,39 @@ async function refetchBookInfo(req: Request) {
 async function searchBooks(req: Request) {
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q");
-  if (!q || q.trim().length < 2) return NextResponse.json({ error: "q パラメータが必要です（2文字以上）" }, { status: 400 });
+  const titleParam = searchParams.get("title");
+  const authorParam = searchParams.get("author");
+  const publisherParam = searchParams.get("publisher");
 
-  const isbnMatch = q.match(/^isbn[:\s]*(\d{10,13})$/i);
-  let searchQuery = q;
+  // フィールド指定検索かどうか判定
+  const hasFieldParams = titleParam || authorParam || publisherParam;
 
-  const ndlPromise = isbnMatch
-    ? searchNdlForCandidates(isbnMatch[1], "isbn")
-    : searchNdlForCandidates(q.replace(/[\u3000\u00A0]/g, " ").replace(/\s+/g, " ").trim(), "keyword");
+  // バリデーション: q またはフィールドのいずれかが2文字以上必要
+  if (!hasFieldParams && (!q || q.trim().length < 2)) {
+    return NextResponse.json({ error: "検索パラメータが必要です（2文字以上）" }, { status: 400 });
+  }
+  if (hasFieldParams) {
+    const anyLongEnough = [titleParam, authorParam, publisherParam].some(
+      (v) => v && v.trim().length >= 2
+    );
+    if (!anyLongEnough) {
+      return NextResponse.json({ error: "いずれかのフィールドに2文字以上入力してください" }, { status: 400 });
+    }
+  }
+
+  // ISBN検索モード（バーコード用）
+  const isbnMatch = q?.match(/^isbn[:\s]*(\d{10,13})$/i);
+
+  let googleQuery: string;
+  let ndlPromise: Promise<Candidate[]>;
 
   if (isbnMatch) {
+    // ISBN検索
     const isbn = isbnMatch[1];
+    googleQuery = `isbn:${isbn}`;
+    ndlPromise = searchNdlForCandidates(isbn, "isbn");
+
+    // Google Booksで見つからない場合のフォールバック用に先行ISBN検索
     const isbnUrl = new URL("https://www.googleapis.com/books/v1/volumes");
     isbnUrl.searchParams.set("q", `isbn:${isbn}`);
     isbnUrl.searchParams.set("maxResults", "5");
@@ -316,14 +350,36 @@ async function searchBooks(req: Request) {
     if (!isbnData.items || isbnData.items.length === 0) {
       try {
         const obdRes = await fetch(`https://api.openbd.jp/v1/get?isbn=${isbn}`);
-        if (obdRes.ok) { const obdData = await obdRes.json(); const title = obdData?.[0]?.summary?.title; if (title) searchQuery = title; }
+        if (obdRes.ok) {
+          const obdData = await obdRes.json();
+          const title = obdData?.[0]?.summary?.title;
+          if (title) googleQuery = `intitle:${title}`;
+        }
       } catch { /* fallback */ }
     }
+  } else if (hasFieldParams) {
+    // フィールド指定検索: Google Books クエリ構築
+    const googleParts: string[] = [];
+    if (titleParam) googleParts.push(`intitle:${titleParam}`);
+    if (authorParam) googleParts.push(`inauthor:${authorParam}`);
+    if (publisherParam) googleParts.push(`inpublisher:${publisherParam}`);
+    googleQuery = googleParts.join("+");
+
+    // NDL フィールド指定検索
+    const ndlFields: NdlFieldQuery = {};
+    if (titleParam) ndlFields.title = titleParam;
+    if (authorParam) ndlFields.author = authorParam;
+    if (publisherParam) ndlFields.publisher = publisherParam;
+    ndlPromise = searchNdlForCandidates(ndlFields, "fields");
+  } else {
+    // 従来のキーワード検索（q パラメータ）
+    const cleaned = q!.replace(/[\u3000\u00A0]/g, " ").replace(/\s+/g, " ").trim();
+    googleQuery = cleaned;
+    ndlPromise = searchNdlForCandidates(cleaned, "keyword");
   }
 
-  searchQuery = searchQuery.replace(/[\u3000\u00A0]/g, " ").replace(/\s+/g, " ").trim();
   const url = new URL("https://www.googleapis.com/books/v1/volumes");
-  url.searchParams.set("q", searchQuery);
+  url.searchParams.set("q", googleQuery);
   url.searchParams.set("maxResults", "20");
   url.searchParams.set("printType", "books");
   if (process.env.GOOGLE_BOOKS_API_KEY) url.searchParams.set("key", process.env.GOOGLE_BOOKS_API_KEY);
@@ -350,7 +406,8 @@ async function searchBooks(req: Request) {
     const vol = item.volumeInfo;
     if (!vol?.title) continue;
     const isbn = extractIsbn(vol.industryIdentifiers);
-    if (isbn) { if (seenIsbns.has(isbn)) continue; seenIsbns.add(isbn); }
+    const normIsbn = isbn ? normalizeIsbn(isbn) : null;
+    if (normIsbn) { if (seenIsbns.has(normIsbn)) continue; seenIsbns.add(normIsbn); }
     const normTitle = normalizeTitle(vol.title);
     seenTitles.add(normTitle);
     const thumbnail = vol.imageLinks?.thumbnail ?? vol.imageLinks?.smallThumbnail ?? null;
@@ -365,9 +422,10 @@ async function searchBooks(req: Request) {
 
   const ndlCandidates = ndlResult.status === "fulfilled" ? ndlResult.value : [];
   for (const ndl of ndlCandidates) {
-    if (ndl.isbn && seenIsbns.has(ndl.isbn)) continue;
+    const normIsbn = ndl.isbn ? normalizeIsbn(ndl.isbn) : null;
+    if (normIsbn && seenIsbns.has(normIsbn)) continue;
     if (seenTitles.has(normalizeTitle(ndl.title))) continue;
-    if (ndl.isbn) seenIsbns.add(ndl.isbn);
+    if (normIsbn) seenIsbns.add(normIsbn);
     seenTitles.add(normalizeTitle(ndl.title));
     candidates.push(ndl);
   }
