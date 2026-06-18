@@ -15,6 +15,8 @@ type BookCardProps = {
   discipline: string | null;
   rating: number | null;
   status: BookStatus;
+  readNext?: boolean;
+  showReadNextBadge?: boolean;
   readAt: Date | null;
   statusChangedAt?: Date | null;
 };
@@ -29,6 +31,8 @@ export default function BookCard({
   discipline,
   rating,
   status,
+  readNext = false,
+  showReadNextBadge = false,
   readAt,
   statusChangedAt,
 }: BookCardProps) {
@@ -86,6 +90,14 @@ export default function BookCard({
         </p>
       ) : status !== "READ" ? (
         <div className="mt-2 flex items-center gap-2">
+          {showReadNextBadge && readNext && (
+            <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-purple-100 text-purple-700">
+              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M6.32 2.577a49.255 49.255 0 0111.36 0c1.497.174 2.57 1.46 2.57 2.93V21L12 17.5 3.75 21V5.507c0-1.47 1.073-2.756 2.57-2.93z" />
+              </svg>
+              次に読みたい
+            </span>
+          )}
           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
             status === "WANT_TO_READ" ? "bg-purple-50 text-purple-600" :
             status === "READING_STACK" ? "bg-amber-50 text-amber-600" :

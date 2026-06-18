@@ -16,6 +16,7 @@ type BookData = {
   discipline: string | null;
   rating: number | null;
   status: string;
+  readNext: boolean;
   readAt: string | null;
   statusChangedAt: string | null;
 };
@@ -24,9 +25,11 @@ type Props = {
   books: BookData[];
   totalCount: number;
   hasMore: boolean;
+  /** 「読みたい」タブで「次に読みたい」バッジを表示するか */
+  pinReadNext?: boolean;
 };
 
-export default function BookList({ books, totalCount, hasMore }: Props) {
+export default function BookList({ books, totalCount, hasMore, pinReadNext = false }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
@@ -88,6 +91,8 @@ export default function BookList({ books, totalCount, hasMore }: Props) {
             discipline={book.discipline}
             rating={book.rating}
             status={book.status as BookStatus}
+            readNext={book.readNext}
+            showReadNextBadge={pinReadNext}
             readAt={book.readAt ? new Date(book.readAt) : null}
             statusChangedAt={book.statusChangedAt ? new Date(book.statusChangedAt) : null}
           />

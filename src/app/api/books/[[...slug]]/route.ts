@@ -210,16 +210,33 @@ async function updateBook(id: string, req: Request) {
 
 async function patchBook(id: string, req: Request) {
   try {
-    const { status } = await req.json();
-    const newStatus = status as PrismaBookStatus;
+    const body = await req.json();
+    const { status, readNext } = body;
     const existingBook = await prisma.book.findUnique({ where: { id } });
     if (!existingBook) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    let resolvedReadAt: Date | null = existingBook.readAt;
-    if (newStatus === "READ" && existingBook.status !== "READ") resolvedReadAt = existingBook.readAt ?? new Date();
-    else if (newStatus !== "READ" && existingBook.status === "READ") resolvedReadAt = null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data: Record<string, any> = {};
 
-    const book = await prisma.book.update({ where: { id }, data: { status: newStatus, readAt: resolvedReadAt, statusChangedAt: new Date() } });
+    // 「次に読みたい」フラグのみの更新にも対応
+    if (typeof readNext === "boolean") data.readNext = readNext;
+
+    // ステータス変更（指定時のみ）
+    if (status !== undefined) {
+      const newStatus = status as PrismaBookStatus;
+      let resolvedReadAt: Date | null = existingBook.readAt;
+      if (newStatus === "READ" && existingBook.status !== "READ") resolvedReadAt = existingBook.readAt ?? new Date();
+      else if (newStatus !== "READ" && existingBook.status === "READ") resolvedReadAt = null;
+      data.status = newStatus;
+      data.readAt = resolvedReadAt;
+      data.statusChangedAt = new Date();
+    }
+
+    if (Object.keys(data).length === 0) {
+      return NextResponse.json({ error: "更新対象がありません" }, { status: 400 });
+    }
+
+    const book = await prisma.book.update({ where: { id }, data });
     revalidatePath("/", "layout");
     return NextResponse.json(book);
   } catch {

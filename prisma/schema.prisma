@@ -28,6 +28,7 @@ model Book {
   description   String?
   notes         String?
   status          BookStatus    @default(READ)
+  readNext        Boolean       @default(false)
   readAt          DateTime?
   statusChangedAt DateTime      @default(now())
   createdAt       DateTime      @default(now())
@@ -37,6 +38,7 @@ model Book {
   @@index([readAt])
   @@index([category])
   @@index([status, readAt])
+  @@index([status, readNext])
 }
 
 model BookKeyword {

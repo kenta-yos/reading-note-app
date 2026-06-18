@@ -4,6 +4,7 @@ import DeleteButton from "@/components/DeleteButton";
 import ActionLink from "@/components/ActionLink";
 import BackButton from "@/components/BackButton";
 import StatusChanger from "@/components/StatusChanger";
+import ReadNextToggle from "@/components/ReadNextToggle";
 import { BookStatus } from "@/lib/types";
 import RefetchButton from "@/components/RefetchButton";
 
@@ -89,8 +90,9 @@ export default async function BookDetailPage({
         )}
 
         {/* ステータス */}
-        <div className="mt-4 pt-4 border-t border-slate-100">
+        <div className="mt-4 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
           <StatusChanger bookId={book.id} currentStatus={book.status as BookStatus} />
+          <ReadNextToggle bookId={book.id} initialReadNext={book.readNext} />
         </div>
 
         {/* メタ情報 */}

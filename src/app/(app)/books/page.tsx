@@ -51,9 +51,13 @@ async function BookListServer({ searchParams }: { searchParams: SearchParams }) 
     } : {}),
   };
 
-  const orderBy = validStatus === "READ"
-    ? { readAt: "desc" as const }
-    : { createdAt: "desc" as const };
+  const orderBy =
+    validStatus === "READ"
+      ? { readAt: "desc" as const }
+      : validStatus === "WANT_TO_READ"
+        // 「読みたい」タブでは「次に読みたい」を常に上部に固定表示
+        ? [{ readNext: "desc" as const }, { createdAt: "desc" as const }]
+        : { createdAt: "desc" as const };
 
   const [books, totalCount] = await Promise.all([
     prisma.book.findMany({ where, orderBy, take: take + 1 }),
@@ -71,6 +75,7 @@ async function BookListServer({ searchParams }: { searchParams: SearchParams }) 
         statusChangedAt: b.statusChangedAt.toISOString(),
         createdAt: b.createdAt.toISOString(),
       }))}
+      pinReadNext={validStatus === "WANT_TO_READ"}
       totalCount={totalCount}
       hasMore={hasMore}
     />

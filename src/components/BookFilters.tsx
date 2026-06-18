@@ -26,7 +26,14 @@ export default function BookFilters({ disciplines, years, children }: Props) {
   const isSwipe = useRef(false);
   const directionLocked = useRef(false);
 
-  const activeStatus = searchParams.get("status") as BookStatus | null;
+  // status未指定かつ他のフィルタもないときは「読みたい」をデフォルトの選択タブとして扱う
+  // （サーバー側 books/page.tsx のデフォルト挙動と一致させる）
+  const rawStatus = searchParams.get("status") as BookStatus | null;
+  const hasOtherFilters = Boolean(
+    searchParams.get("q") || searchParams.get("discipline") || searchParams.get("year")
+  );
+  const activeStatus: BookStatus | null =
+    rawStatus ?? (hasOtherFilters ? null : "WANT_TO_READ");
 
   const updateParam = useCallback(
     (key: string, value: string) => {
