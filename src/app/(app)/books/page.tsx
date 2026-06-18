@@ -60,7 +60,27 @@ async function BookListServer({ searchParams }: { searchParams: SearchParams }) 
         : { createdAt: "desc" as const };
 
   const [books, totalCount] = await Promise.all([
-    prisma.book.findMany({ where, orderBy, take: take + 1 }),
+    // 一覧表示に必要な列のみ取得（description / notes など大きなテキスト列を除外）
+    prisma.book.findMany({
+      where,
+      orderBy,
+      take: take + 1,
+      select: {
+        id: true,
+        title: true,
+        author: true,
+        publisher: true,
+        publishedYear: true,
+        pages: true,
+        discipline: true,
+        rating: true,
+        status: true,
+        readNext: true,
+        readAt: true,
+        statusChangedAt: true,
+        createdAt: true,
+      },
+    }),
     prisma.book.count({ where }),
   ]);
 
@@ -82,6 +102,23 @@ async function BookListServer({ searchParams }: { searchParams: SearchParams }) 
   );
 }
 
+// フィルタ用の選択肢（分野・年）を取得して BookFilters を描画する。
+// 一覧クエリ（children）と並列に走らせるため独立した async コンポーネントに分離している。
+async function FiltersWithData({ children }: { children: React.ReactNode }) {
+  const [disciplines, availableYears] = await Promise.all([
+    getDisciplines(),
+    getAvailableYears(),
+  ]);
+  const currentYear = new Date().getFullYear();
+  const years = [...new Set([...availableYears, currentYear])].sort((a, b) => b - a);
+
+  return (
+    <BookFilters disciplines={disciplines} years={years}>
+      {children}
+    </BookFilters>
+  );
+}
+
 export default async function BooksPage({
   searchParams,
 }: {
@@ -95,12 +132,12 @@ export default async function BooksPage({
     status: params.status || (!params.q && !params.discipline && !params.year ? "WANT_TO_READ" : params.status),
   };
 
-  const [disciplines, availableYears] = await Promise.all([
-    getDisciplines(),
-    getAvailableYears(),
-  ]);
-  const currentYear = new Date().getFullYear();
-  const years = [...new Set([...availableYears, currentYear])].sort((a, b) => b - a);
+  // 一覧クエリを先に組み立てておくことで、フィルタ用クエリ（分野・年）と並列に実行される
+  const bookList = (
+    <Suspense fallback={<BookListSkeleton />}>
+      <BookListServer searchParams={effectiveParams} />
+    </Suspense>
+  );
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -120,12 +157,8 @@ export default async function BooksPage({
         </div>
       </div>
 
-      <Suspense>
-        <BookFilters disciplines={disciplines} years={years}>
-          <Suspense fallback={<BookListSkeleton />}>
-            <BookListServer searchParams={effectiveParams} />
-          </Suspense>
-        </BookFilters>
+      <Suspense fallback={<BookListSkeleton />}>
+        <FiltersWithData>{bookList}</FiltersWithData>
       </Suspense>
     </div>
   );

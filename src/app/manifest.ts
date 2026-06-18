@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "ScholarGraph",
     short_name: "ScholarGraph",
     description: "研究書・専門書の読書管理アプリ",
-    start_url: "/",
+    start_url: "/books",
     display: "standalone",
     background_color: "#f8fafc",
     theme_color: "#1e293b",
