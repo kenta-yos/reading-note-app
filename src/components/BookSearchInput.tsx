@@ -34,6 +34,7 @@ export default function BookSearchInput({ onSelect }: BookSearchInputProps) {
   const [showScanner, setShowScanner] = useState(false);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -169,6 +170,18 @@ export default function BookSearchInput({ onSelect }: BookSearchInputProps) {
     scheduleSearch(value, authorQuery, publisherQuery);
   };
 
+  const handleClearTitle = () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    abortRef.current?.abort();
+    setTitleQuery("");
+    setCandidates([]);
+    setSearchError("");
+    setSearchLoading(false);
+    titleInputRef.current?.focus();
+    // 著者・出版社の絞り込みが残っていれば、それで再検索
+    scheduleSearch("", authorQuery, publisherQuery);
+  };
+
   const handleAuthorChange = (value: string) => {
     setAuthorQuery(value);
     scheduleSearch(titleQuery, value, publisherQuery);
@@ -290,13 +303,26 @@ export default function BookSearchInput({ onSelect }: BookSearchInputProps) {
       <div className="relative" ref={dropdownRef}>
         <div className="relative">
           <input
+            ref={titleInputRef}
             type="text"
             value={titleQuery}
             onChange={(e) => handleTitleChange(e.target.value)}
             placeholder="書名を入力（例：サピエンス全史）"
-            className="w-full p-2.5 pr-10 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white placeholder:text-slate-400"
+            className="w-full p-2.5 pr-16 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white placeholder:text-slate-400"
           />
-          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+            {titleQuery.length > 0 && (
+              <button
+                type="button"
+                onClick={handleClearTitle}
+                aria-label="書名をクリア"
+                className="flex items-center justify-center w-6 h-6 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                  <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                </svg>
+              </button>
+            )}
             {searchLoading ? (
               <Spinner className="w-4 h-4 text-blue-500" />
             ) : (

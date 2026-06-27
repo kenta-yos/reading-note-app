@@ -66,6 +66,14 @@ function normalizeIsbn(isbn: string): string {
   if (digits.length === 10) return isbn10to13(digits);
   return digits;
 }
+// 半角・全角スペース（およびNBSP）でキーワードを分割する
+function splitKeywords(s: string): string[] {
+  return s
+    .replace(/[　 ]/g, " ")
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter(Boolean);
+}
 
 // ── GET ──
 export async function GET(req: Request, { params }: Params) {
@@ -376,10 +384,11 @@ async function searchBooks(req: Request) {
     }
   } else if (hasFieldParams) {
     // フィールド指定検索: Google Books クエリ構築
+    // 各フィールドは半角/全角スペースで分割し、語ごとに intitle:/inauthor:/inpublisher: を付与（AND 絞り込み）
     const googleParts: string[] = [];
-    if (titleParam) googleParts.push(`intitle:${titleParam}`);
-    if (authorParam) googleParts.push(`inauthor:${authorParam}`);
-    if (publisherParam) googleParts.push(`inpublisher:${publisherParam}`);
+    if (titleParam) googleParts.push(...splitKeywords(titleParam).map((t) => `intitle:${t}`));
+    if (authorParam) googleParts.push(...splitKeywords(authorParam).map((t) => `inauthor:${t}`));
+    if (publisherParam) googleParts.push(...splitKeywords(publisherParam).map((t) => `inpublisher:${t}`));
     googleQuery = googleParts.join("+");
 
     // NDL フィールド指定検索

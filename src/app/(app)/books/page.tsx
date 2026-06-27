@@ -126,10 +126,12 @@ export default async function BooksPage({
 }) {
   const params = await searchParams;
 
-  // デフォルトで「読みたい」タブを表示
+  // デフォルトで「読みたい」タブを表示。
+  // キーワード検索(q)はデフォルトのステータスを解除せず、現在のタブ内で絞り込む。
+  // （分野・年フィルタ指定時のみ、従来どおり全ステータスを横断する）
   const effectiveParams = {
     ...params,
-    status: params.status || (!params.q && !params.discipline && !params.year ? "WANT_TO_READ" : params.status),
+    status: params.status || (!params.discipline && !params.year ? "WANT_TO_READ" : params.status),
   };
 
   // 一覧クエリを先に組み立てておくことで、フィルタ用クエリ（分野・年）と並列に実行される

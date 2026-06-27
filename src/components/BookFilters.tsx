@@ -17,7 +17,9 @@ export default function BookFilters({ disciplines, years, children }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [isTyping, setIsTyping] = useState<boolean>(false);
+  const [hasQuery, setHasQuery] = useState<boolean>(Boolean(searchParams.get("q")));
   const [isPending, startTransition] = useTransition();
   const [pendingTab, setPendingTab] = useState<TabKey>(null);
 
@@ -28,9 +30,11 @@ export default function BookFilters({ disciplines, years, children }: Props) {
 
   // status未指定かつ他のフィルタもないときは「読みたい」をデフォルトの選択タブとして扱う
   // （サーバー側 books/page.tsx のデフォルト挙動と一致させる）
+  // キーワード検索(q)はステータスタブの選択を解除しない（現在のタブ内で検索する）。
+  // 分野・年フィルタのときのみ、サーバー側と同様に全ステータス横断＝タブ非選択とする。
   const rawStatus = searchParams.get("status") as BookStatus | null;
   const hasOtherFilters = Boolean(
-    searchParams.get("q") || searchParams.get("discipline") || searchParams.get("year")
+    searchParams.get("discipline") || searchParams.get("year")
   );
   const activeStatus: BookStatus | null =
     rawStatus ?? (hasOtherFilters ? null : "WANT_TO_READ");
@@ -99,10 +103,20 @@ export default function BookFilters({ disciplines, years, children }: Props) {
     setIsTyping(true);
     clearTimeout(debounceTimer.current);
     const value = e.target.value;
+    setHasQuery(value.length > 0);
     debounceTimer.current = setTimeout(() => {
       setIsTyping(false);
       updateParam("q", value);
     }, 300);
+  };
+
+  const clearSearch = () => {
+    clearTimeout(debounceTimer.current);
+    if (searchInputRef.current) searchInputRef.current.value = "";
+    setHasQuery(false);
+    setIsTyping(false);
+    searchInputRef.current?.focus();
+    updateParam("q", "");
   };
 
   return (
@@ -149,18 +163,31 @@ export default function BookFilters({ disciplines, years, children }: Props) {
         <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3">
         <div className="relative w-full sm:flex-1">
           <input
+            ref={searchInputRef}
             type="text"
             defaultValue={searchParams.get("q") ?? ""}
             placeholder="タイトル・著者を検索..."
             onChange={handleSearchChange}
-            className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-base sm:text-sm"
+            className="w-full p-2.5 pr-20 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-base sm:text-sm"
             style={{ fontSize: "16px" }}
           />
-          {isTyping && (
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">
-              検索中…
-            </span>
-          )}
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+            {isTyping && (
+              <span className="text-xs text-slate-400">検索中…</span>
+            )}
+            {hasQuery && (
+              <button
+                type="button"
+                onClick={clearSearch}
+                aria-label="検索をクリア"
+                className="flex items-center justify-center w-6 h-6 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
         <div className="flex gap-2">
           <select

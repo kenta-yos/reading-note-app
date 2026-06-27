@@ -136,10 +136,13 @@ export async function searchNdlForCandidates(
   try {
     let cql: string;
     if (mode === "fields" && typeof query === "object") {
+      // 各フィールドは半角/全角スペースで分割し、語ごとの条件を AND で結合する
+      const splitField = (s: string): string[] =>
+        s.replace(/[　 ]/g, " ").split(/\s+/).map((t) => t.trim()).filter(Boolean);
       const parts: string[] = [];
-      if (query.title) parts.push(`title="${query.title}"`);
-      if (query.author) parts.push(`creator="${query.author}"`);
-      if (query.publisher) parts.push(`publisher="${query.publisher}"`);
+      if (query.title) for (const t of splitField(query.title)) parts.push(`title="${t}"`);
+      if (query.author) for (const t of splitField(query.author)) parts.push(`creator="${t}"`);
+      if (query.publisher) for (const t of splitField(query.publisher)) parts.push(`publisher="${t}"`);
       if (query.isbn) parts.push(`isbn="${query.isbn}"`);
       if (parts.length === 0) return [];
       cql = parts.join(" AND ");
