@@ -10,6 +10,20 @@ import { BookStatus as PrismaBookStatus } from "@prisma/client";
 
 const DEFAULT_PAGE_SIZE = 10;
 
+// 検索キーワードを半角・全角スペースで分割し、各語が「書名 OR 著者」に含まれる AND 条件を作る
+function buildKeywordWhere(q: string) {
+  const tokens = q.replace(/[　 ]/g, " ").split(/\s+/).map((t) => t.trim()).filter(Boolean);
+  if (tokens.length === 0) return {};
+  return {
+    AND: tokens.map((t) => ({
+      OR: [
+        { title: { contains: t, mode: "insensitive" as const } },
+        { author: { contains: t, mode: "insensitive" as const } },
+      ],
+    })),
+  };
+}
+
 async function getDisciplines(): Promise<string[]> {
   const rows = await prisma.book.findMany({
     where: { discipline: { not: null } },
@@ -43,12 +57,7 @@ async function BookListServer({ searchParams }: { searchParams: SearchParams }) 
     } : {}),
     ...(discipline ? { discipline } : {}),
     ...(validStatus ? { status: validStatus } : {}),
-    ...(q ? {
-      OR: [
-        { title: { contains: q, mode: "insensitive" as const } },
-        { author: { contains: q, mode: "insensitive" as const } },
-      ]
-    } : {}),
+    ...(q ? buildKeywordWhere(q) : {}),
   };
 
   const orderBy =

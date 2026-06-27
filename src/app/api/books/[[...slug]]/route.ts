@@ -139,7 +139,16 @@ async function listBooks(req: Request) {
     ...(year ? { readAt: { gte: new Date(parseInt(year), 0, 1), lt: new Date(parseInt(year) + 1, 0, 1) } } : {}),
     ...(category ? { category } : {}),
     ...(status && Object.values(PrismaBookStatus).includes(status as PrismaBookStatus) ? { status: status as PrismaBookStatus } : {}),
-    ...(q ? { OR: [{ title: { contains: q, mode: "insensitive" as const } }, { author: { contains: q, mode: "insensitive" as const } }] } : {}),
+    ...(q
+      ? {
+          AND: splitKeywords(q).map((t) => ({
+            OR: [
+              { title: { contains: t, mode: "insensitive" as const } },
+              { author: { contains: t, mode: "insensitive" as const } },
+            ],
+          })),
+        }
+      : {}),
   };
 
   const orderBy = status === "READ" || (!status && !q) ? { readAt: "desc" as const } : { createdAt: "desc" as const };
