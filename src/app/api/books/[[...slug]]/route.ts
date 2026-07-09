@@ -75,6 +75,28 @@ function splitKeywords(s: string): string[] {
     .filter(Boolean);
 }
 
+// 一時的な失敗（5xx / 429）に強い fetch。
+// Google Books API はバースト的に 503 を返すことがあるため、短いバックオフでリトライする。
+async function fetchWithRetry(url: string, retries = 2): Promise<Response | null> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const res = await fetch(url);
+      // 一時エラーのみリトライ対象。4xx（429以外）はそのまま返す
+      if ((res.status === 429 || res.status >= 500) && attempt < retries) {
+        await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+        continue;
+      }
+      return res;
+    } catch {
+      if (attempt < retries) {
+        await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+        continue;
+      }
+      return null;
+    }
+  }
+}
+
 // ── GET ──
 export async function GET(req: Request, { params }: Params) {
   const { slug } = await params;
@@ -419,13 +441,24 @@ async function searchBooks(req: Request) {
   url.searchParams.set("printType", "books");
   if (process.env.GOOGLE_BOOKS_API_KEY) url.searchParams.set("key", process.env.GOOGLE_BOOKS_API_KEY);
 
-  const [googleResult, ndlResult] = await Promise.allSettled([fetch(url.toString()), ndlPromise]);
-  if (googleResult.status === "rejected" || !googleResult.value.ok) {
-    return NextResponse.json({ error: "書籍情報の取得に失敗しました" }, { status: 502 });
-  }
+  const [googleResult, ndlResult] = await Promise.allSettled([
+    fetchWithRetry(url.toString()),
+    ndlPromise,
+  ]);
 
-  const data = await googleResult.value.json();
-  const items: GoogleBooksVolume[] = data.items ?? [];
+  // Google Books の応答（リトライ後）。取得できなければ NDL 結果のみで継続する
+  const googleResp = googleResult.status === "fulfilled" ? googleResult.value : null;
+  const googleOk = !!googleResp && googleResp.ok;
+  let items: GoogleBooksVolume[] = [];
+  if (googleOk) {
+    const data = await googleResp!.json();
+    items = data.items ?? [];
+  } else {
+    // 多くは Google Books 側の一時的な 503。NDL があればそれで検索を成立させる
+    console.error(
+      `[books/search] Google Books unavailable (status=${googleResp?.status ?? "network_error"}) q="${googleQuery}"`
+    );
+  }
   const sorted = [...items].sort((a, b) => {
     const aJa = isJapanese(a.volumeInfo) ? 0 : 1;
     const bJa = isJapanese(b.volumeInfo) ? 0 : 1;
@@ -473,7 +506,17 @@ async function searchBooks(req: Request) {
   });
   candidates.splice(8);
 
-  if (candidates.length === 0) return NextResponse.json({ candidates: [] });
+  if (candidates.length === 0) {
+    // Google が一時的に落ちていて NDL からも取れなかった場合のみ、明示的に一時エラーを返す
+    // （リトライを促すため。純粋に「見つからなかった」場合は空配列で返す）
+    if (!googleOk) {
+      return NextResponse.json(
+        { error: "書籍情報の取得に失敗しました（時間をおいて再度お試しください）" },
+        { status: 502 }
+      );
+    }
+    return NextResponse.json({ candidates: [] });
+  }
 
   // OpenBD補完
   const candidateIsbns = candidates.map((c) => c.isbn);
